@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useRef} from "react";
-import {useInput} from "ink";
+import {Box, useInput} from "ink";
 import {useSnapshot} from "valtio";
 import {GrokAgent} from "../../clanker/agent";
 import {ChatLayout} from "../components/chat/ChatLayout";
@@ -135,13 +135,17 @@ export function ChatContainer({agent}: ChatContainerProps) {
 
     return (
         <ChatLayout>
-            {showCommandSuggestions && <CommandSuggestions/>}
-            {showModelSelection && <ModelSelection/>}
-            <ChatHistory messageRegistry={messageRegistry} executionRegistry={executionRegistry}
-                         toolRegistry={toolRegistry}/>
-            <LoadingAndStatus/>
+            <Box paddingX={2}>
+                {showCommandSuggestions && <CommandSuggestions/>}
+                {showModelSelection && <ModelSelection/>}
+                <ChatHistory messageRegistry={messageRegistry} executionRegistry={executionRegistry}
+                             toolRegistry={toolRegistry}/>
+                <LoadingAndStatus/>
+            </Box>
             <ChatInput/>
-            <StatusBar/>
+            <Box paddingX={2}>
+                <StatusBar/>
+            </Box>
             {snap.confirmationOptions && (
                 <ConfirmationDialog
                     {...snap.confirmationOptions}

@@ -3,18 +3,11 @@ import {Box, Text, useStdout} from "ink";
 import {useSnapshot} from "valtio";
 import {store} from "../../store";
 
-/**
- * ChatIndicator component - placeholder for spacing
- * The actual indicator is now in the StatusBar
- */
-export function ChatIndicator() {
-    return null;
-}
 
 /**
  * ChatProgress component - shows animated dots pattern responsive to token counts
  */
-export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) {
+export const ChatProgress: React.FC<{ elapsedSeconds: number }> = ({elapsedSeconds}) => {
     // Get state using Valtio's useSnapshot
     const snap = useSnapshot(store);
 
@@ -82,23 +75,22 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
         const dots = [];
         const dotCount = Math.min(maxBarWidth, 80);
         const midPoint = dotCount / 2;
-        
+
         // Create different patterns based on token flow
         const inputTokens = snap.inputTokenCount;
         const outputTokens = snap.outputTokenCount;
         const totalTokens = inputTokens + outputTokens;
-        
+
         // Base idle animation
         const idleWave = Math.sin(idleFrame * 0.02) * 0.5 + 0.5;
-        
+
         for (let i = 0; i < dotCount; i++) {
-            const position = i / dotCount;
             const distanceFromCenter = Math.abs(i - midPoint) / midPoint;
-            
+
             // Create bidirectional wave effect
             let intensity = 0;
             let color = 'gray';
-            
+
             if (outputTokens > 0 && i >= midPoint) {
                 // Right side - output tokens (flowing right)
                 const rightPosition = (i - midPoint) / midPoint;
@@ -106,7 +98,7 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
                 intensity = Math.max(0, rightWave) * (1 - rightPosition * 0.3);
                 color = 'cyan';
             }
-            
+
             if (inputTokens > 0 && i < midPoint) {
                 // Left side - input tokens (flowing left)
                 const leftPosition = (midPoint - i) / midPoint;
@@ -117,13 +109,13 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
                     color = 'green';
                 }
             }
-            
+
             // Add idle animation when no tokens
             if (totalTokens === 0) {
                 intensity = idleWave * (1 - distanceFromCenter) * 0.6;
                 color = 'gray';
             }
-            
+
             // Different dot characters based on intensity
             let dotChar = '·';
             if (intensity > 0.8) {
@@ -135,14 +127,14 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
             } else if (intensity > 0.2) {
                 dotChar = '∙';
             }
-            
+
             dots.push({
                 char: dotChar,
                 color: color,
                 dim: intensity < 0.3
             });
         }
-        
+
         return dots;
     };
 
@@ -188,4 +180,4 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
             )}
         </Box>
     );
-}
+};

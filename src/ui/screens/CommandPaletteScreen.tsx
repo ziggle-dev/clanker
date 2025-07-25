@@ -10,10 +10,12 @@ import {
 } from '../components/form';
 import { getCommandRegistry } from '../../commands/registry';
 import { ArgumentDefinition } from '../../commands/types';
-import { actions } from '../../store';
+import { actions, store } from '../../store';
+import { useSnapshot } from 'valtio';
 
 export const CommandPaletteScreen: React.FC = () => {
     const registry = getCommandRegistry();
+    const snap = useSnapshot(store);
     
     // Get command options for the select
     const commandOptions: SelectOption[] = useMemo(() => 
@@ -46,11 +48,20 @@ export const CommandPaletteScreen: React.FC = () => {
         // Execute command
         await commandDef.exec(args);
         
+        // Clear the "/" from input if it's there
+        if (snap.inputValue === '/') {
+            actions.setInputValue('');
+        }
+        
         // Close the command palette
         actions.popStage();
     };
     
     const handleCancel = () => {
+        // Clear the "/" from input when canceling
+        if (snap.inputValue === '/') {
+            actions.setInputValue('');
+        }
         actions.popStage();
     };
     

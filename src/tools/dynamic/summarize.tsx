@@ -41,6 +41,58 @@ const summarizeTool = createTool()
     // Examples
     .examples([
         {
+            description: "Summarize work completed this session",
+            arguments: {
+                text: "REST OF MESSAGE HISTORY AS CONTEXT..... ⏺ I need to import Box in ChatContainer:\n" +
+                    "\n" +
+                    "⏺ Update(src/ui/containers/ChatContainer.tsx)\n" +
+                    "  ⎿  Updated src/ui/containers/ChatContainer.tsx with 1 addition and 1 removal\n" +
+                    "       1    import React, {useCallback, useEffect, useRef} from \"react\";\n" +
+                    "       2 -  import {useInput} from \"ink\";\n" +
+                    "       2 +  import {Box, useInput} from \"ink\";\n" +
+                    "       3    import {useSnapshot} from \"valtio\";\n" +
+                    "       4    import {GrokAgent} from \"../../clanker/agent\";\n" +
+                    "       5    import {ChatLayout} from \"../components/chat/ChatLayout\";\n" +
+                    "\n" +
+                    "⏺ Update Todos\n" +
+                    "  ⎿  ☒ Update ChatInput to have bottom margin and be fixed         \n" +
+                    "     ☒ Change ChatInput to have only top border spanning full width\n" +
+                    "\n" +
+                    "⏺ Bash(npm run typecheck)\n" +
+                    "  ⎿  > @ziggle/clanker@0.1.0 typecheck\n" +
+                    "     > tsc --noEmit",
+                instructions: "Summarize the work done in this session, focusing on code changes and tasks completed"
+            },
+            result: " I've successfully implemented a confirmation modal for SIGINT (Ctrl+C) with the following\n" +
+                "  changes:\n" +
+                "\n" +
+                "  Key Features:\n" +
+                "\n" +
+                "  1. Exit Confirmation Modal - Created a proper modal dialog for exit confirmation\n" +
+                "  2. Clean UI - Shows \"Exit Confirmation\" title with \"Are you sure you want to exit?\" message\n" +
+                "  3. Two Options:\n" +
+                "    - Cancel (secondary button) - Closes modal and clears input\n" +
+                "    - Exit (danger button) - Exits the application\n" +
+                "\n" +
+                "  Changes Made:\n" +
+                "\n" +
+                "  1. Added EXIT_CONFIRMATION stage type to the stage system\n" +
+                "  2. Created ExitConfirmationModal screen that uses the reusable Modal component\n" +
+                "  3. Updated Ctrl+C handlers to push the exit confirmation modal instead of inline confirmation\n" +
+                "  4. Removed old exit confirmation from StatusBar - now always shows the normal status\n" +
+                "\n" +
+                "  User Experience:\n" +
+                "\n" +
+                "  - When user presses Ctrl+C, a modal appears asking for confirmation\n" +
+                "  - User can navigate with arrow keys and select with Enter/Space\n" +
+                "  - Cancel returns to where they were with cleared input\n" +
+                "  - Exit closes the application\n" +
+                "  - No more \"Press Ctrl+C again to exit\" message in the status bar\n" +
+                "\n" +
+                "  This provides a cleaner, more consistent user experience that follows the same pattern as other\n" +
+                "  modals in the application."
+        },
+        {
             description: "Summarize meeting notes extracting action items",
             arguments: {
                 text: "Meeting Notes - Product Launch Review\n\nAttendees: Sarah (PM), Mike (Dev), Lisa (Design)\n\nDiscussion:\n- Sarah presented the launch timeline, targeting March 15th\n- Mike mentioned the API integration is 80% complete, needs 2 more days\n- Lisa showed the new UI mockups, team loved the dark mode option\n- Budget concerns raised about marketing spend\n\nDecisions:\n- Approved dark mode for v1.0\n- Marketing budget capped at $50k\n- Beta testing starts March 1st\n\nNext Steps:\n- Mike to complete API by Friday\n- Lisa to finalize icons by next week\n- Sarah to recruit 20 beta testers",
@@ -144,7 +196,7 @@ const summarizeTool = createTool()
             // Get settings to create a client
             const settingsManager = SettingsManager.getInstance();
             const {settings, isValid} = settingsManager.loadSettings();
-            
+
             if (!isValid || !settings.apiKey) {
                 // Fall back to basic text processing if no API key available
                 context.logger?.warn('No API key configured, using basic text processing');
@@ -152,10 +204,10 @@ const summarizeTool = createTool()
             }
 
             // Create a client for chat completion
-            const baseURL = settings.provider === 'custom' && settings.customBaseURL 
-                ? settings.customBaseURL 
+            const baseURL = settings.provider === 'custom' && settings.customBaseURL
+                ? settings.customBaseURL
                 : undefined;
-            
+
             const client = new GrokClient(
                 settings.apiKey,
                 settings.model,
@@ -163,14 +215,27 @@ const summarizeTool = createTool()
             );
 
             // Prepare the summarization prompt
-            let prompt = `Please summarize the following text in a clear and concise manner:\n\n${contentToSummarize}`;
-            
+            let prompt = `Please summarize the following text using numbered points for key changes, findings, or items, followed by a brief overview paragraph that provides context or conclusion. Format the summary with:
+1. First key point
+2. Second key point
+3. Third key point (etc.)
+
+Then a paragraph explaining the overall context or outcome.
+
+Text to summarize:
+${contentToSummarize}`;
+
             if (instructions) {
-                prompt = `Please summarize the following text according to these instructions: ${instructions}\n\nText to summarize:\n${contentToSummarize}`;
+                prompt = `Please summarize the following text according to these instructions: ${instructions}
+
+Important: Use numbered points for the main items/findings/changes, followed by a brief overview paragraph that provides context or conclusion.
+
+Text to summarize:
+${contentToSummarize}`;
             }
 
             context.logger?.info('Generating AI-powered summary...');
-            
+
             // Make the chat completion request
             const response = await client.chat([
                 {
@@ -180,7 +245,7 @@ const summarizeTool = createTool()
             ]);
 
             const summary = response.choices[0]?.message?.content || '';
-            
+
             if (!summary) {
                 return {
                     success: false,
@@ -216,9 +281,9 @@ const summarizeTool = createTool()
             };
         }
     })
-    
+
     // Custom renderer
-    .renderResult(({ isExecuting, result, arguments: args }) => {
+    .renderResult(({isExecuting, result}) => {
         if (isExecuting) {
             return (
                 <CompactOutput>
@@ -245,7 +310,7 @@ const summarizeTool = createTool()
             compressionRatio?: number;
             instructions?: string;
             summaryType?: string;
-            summaryData?: any;
+            summaryData?: never;
             source?: string;
             note?: string;
         };
@@ -254,120 +319,48 @@ const summarizeTool = createTool()
         const summaryType = data?.summaryType || 'unknown';
         const isAIGenerated = summaryType === 'ai_generated';
 
-        // Format the summary output similar to the user's preferred style
+        // Format the summary output to be clean and simple
         return (
             <ToolOutput>
                 <Box flexDirection="column">
-                    {/* Main title */}
-                    <Box marginBottom={1}>
-                        <Text color="cyan" bold>Summary generated with:</Text>
-                    </Box>
-                    
-                    {/* 1. Summary Type and Stats */}
-                    <Box flexDirection="column" paddingLeft={2}>
-                        <Text bold>1. Summary Statistics:</Text>
-                        <Box paddingLeft={3} flexDirection="column">
-                            <Text color="gray">   - Type: {isAIGenerated ? 'AI Generated' : summaryType}</Text>
-                            {data?.source && <Text color="gray">   - Source: {data.source}</Text>}
-                            <Text color="gray">   - Original: {data?.originalWords} words</Text>
-                            <Text color="gray">   - Summary: {data?.summaryWords} words</Text>
-                            <Text color="gray">   - Compression: {data?.compressionRatio}% reduction</Text>
-                            {data?.note && <Text color="yellow">   - Note: {data.note}</Text>}
-                        </Box>
-                    </Box>
-                    
-                    {/* 2. Instructions (if provided) */}
-                    {data?.instructions && (
-                        <Box flexDirection="column" paddingLeft={2} marginTop={1}>
-                            <Text bold>2. Instructions Applied:</Text>
-                            <Box paddingLeft={3}>
-                                <Text color="gray">   - {data.instructions}</Text>
-                            </Box>
-                        </Box>
-                    )}
-                    
-                    {/* 3. Summary Content */}
-                    <Box flexDirection="column" paddingLeft={2} marginTop={1}>
-                        <Text bold>{data?.instructions ? '3' : '2'}. Summary Content:</Text>
-                        <Box paddingLeft={3} flexDirection="column">
-                            {/* Parse and format the summary content */}
-                            {summary.split('\n').map((line, i) => {
-                                if (line.trim() === '') return <Text key={i}> </Text>;
-                                
-                                // Handle bold text
-                                const boldPattern = /\*\*(.*?)\*\*/g;
-                                const parts = line.split(boldPattern);
-                                
-                                return (
-                                    <Text key={i}>
-                                        {'   '}
-                                        {parts.map((part, j) => 
-                                            j % 2 === 1 ? <Text key={j} bold>{part}</Text> : <Text key={j}>{part}</Text>
-                                        )}
-                                    </Text>
-                                );
-                            })}
-                        </Box>
-                    </Box>
-                    
-                    {/* 4. Features Used */}
-                    <Box flexDirection="column" paddingLeft={2} marginTop={1}>
-                        <Text bold>{data?.instructions ? '4' : '3'}. Features Used:</Text>
-                        <Box paddingLeft={3} flexDirection="column">
-                            {isAIGenerated ? (
-                                <>
-                                    <Text color="gray">   - AI language model processing</Text>
-                                    <Text color="gray">   - Context-aware summarization</Text>
-                                    <Text color="gray">   - Instruction-guided generation</Text>
-                                </>
-                            ) : (
-                                <>
-                                    {summaryType === 'action_items' && (
-                                        <>
-                                            <Text color="gray">   - Action item extraction</Text>
-                                            <Text color="gray">   - Pattern matching for tasks</Text>
-                                        </>
+                    {/* Display the summary content directly */}
+                    <Box flexDirection="column">
+                        {summary.split('\n').map((line, i) => {
+                            if (line.trim() === '') return <Text key={i}> </Text>;
+
+                            // Handle bold text
+                            const boldPattern = /\*\*(.*?)\*\*/g;
+                            const parts = line.split(boldPattern);
+
+                            return (
+                                <Text key={i}>
+                                    {parts.map((part, j) =>
+                                        j % 2 === 1 ? <Text key={j} bold>{part}</Text> : <Text key={j}>{part}</Text>
                                     )}
-                                    {summaryType === 'sections' && (
-                                        <>
-                                            <Text color="gray">   - Section detection</Text>
-                                            <Text color="gray">   - Hierarchical organization</Text>
-                                        </>
-                                    )}
-                                    {summaryType === 'brief' && (
-                                        <>
-                                            <Text color="gray">   - Concise extraction</Text>
-                                            <Text color="gray">   - First impression focus</Text>
-                                        </>
-                                    )}
-                                    {summaryType === 'structured' && (
-                                        <>
-                                            <Text color="gray">   - Multi-level analysis</Text>
-                                            <Text color="gray">   - Key point extraction</Text>
-                                            <Text color="gray">   - Section identification</Text>
-                                        </>
-                                    )}
-                                </>
-                            )}
-                        </Box>
+                                </Text>
+                            );
+                        })}
                     </Box>
-                    
+
+                    {/* Show minimal stats at the end */}
                     <Box marginTop={1}>
-                        <Text color="green" dimColor>✓ Summary ready for use!</Text>
+                        <Text color="gray" dimColor>
+                            {data?.originalWords} words → {data?.summaryWords} words ({data?.compressionRatio}% reduction)
+                        </Text>
                     </Box>
                 </Box>
             </ToolOutput>
         );
     })
-    
+
     .build();
 
 // Helper function for basic summarization when no API is available
-function performBasicSummarization(text: string, instructions: string | undefined, context: any) {
+function performBasicSummarization(text: string, instructions: string | undefined, context: any /*bite me*/) {
     const lines = text.split('\n').filter(line => line.trim());
     const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
     const paragraphs = text.split('\n\n').filter(p => p.trim());
-    
+
     // Extract different types of content
     const extractKeyPoints = () => {
         return sentences
@@ -375,22 +368,22 @@ function performBasicSummarization(text: string, instructions: string | undefine
             .slice(0, 5)
             .map((s: string) => s.trim());
     };
-    
+
     const extractActionItems = () => {
         const actionPatterns = [
             /(?:will|should|must|need(?:s)? to|have to|going to)\s+\w+/gi,
             /\b(?:TODO|FIXME|ACTION|TASK):\s*.+/gi,
             /\b(?:next steps?|action items?):\s*.+/gi
         ];
-        return sentences.filter((s: string) => 
+        return sentences.filter((s: string) =>
             actionPatterns.some(pattern => pattern.test(s))
         ).map((s: string) => s.trim());
     };
-    
+
     const extractSections = () => {
         const sections: Record<string, string[]> = {};
         let currentSection = 'Overview';
-        
+
         lines.forEach(line => {
             // Check if line is a header
             if (line.match(/^#+\s+/) || line.match(/^[A-Z][^.!?]*:$/)) {
@@ -401,13 +394,14 @@ function performBasicSummarization(text: string, instructions: string | undefine
                 sections[currentSection].push(line.trim());
             }
         });
-        
+
         return sections;
     };
-    
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let summaryData: any //bite me
     // Build structured summary based on instructions
-    let summaryData: any = {};
-    
+
     if (instructions?.toLowerCase().includes('action')) {
         const actions = extractActionItems();
         summaryData = {
@@ -436,7 +430,7 @@ function performBasicSummarization(text: string, instructions: string | undefine
         // Default structured summary
         const keyPoints = extractKeyPoints();
         const hasActions = extractActionItems().length > 0;
-        
+
         summaryData = {
             type: 'structured',
             title: 'Summary',
@@ -446,25 +440,25 @@ function performBasicSummarization(text: string, instructions: string | undefine
             hasActionItems: hasActions
         };
     }
-    
+
     // Convert to markdown format
     let summary = '';
-    
+
     switch (summaryData.type) {
         case 'action_items':
             summary = summaryData.items.map((item: string, i: number) => `${i + 1}. ${item}`).join('\n');
             break;
-            
+
         case 'sections':
-            summary = summaryData.sections.map((s: any, i: number) => 
+            summary = summaryData.sections.map((s: any, i: number) =>
                 `${i + 1}. **${s.title}**: ${s.summary}`
             ).join('\n');
             break;
-            
+
         case 'brief':
             summary = summaryData.content;
             break;
-            
+
         case 'structured':
             const parts = [];
             if (summaryData.overview) {
