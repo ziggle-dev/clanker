@@ -26,6 +26,7 @@ interface GrokAgentOptions {
     systemPrompt?: string;
     loadDynamicTools?: boolean;
     dynamicToolsPath?: string;
+    watchTools?: boolean;
 }
 
 export interface StreamingChunk {
@@ -86,7 +87,7 @@ export class GrokAgent extends EventEmitter {
         this.toolLoader = createToolLoader(this.registry, {
             directories: directories.length > 0 ? directories : undefined,
             recursive: true,
-            watch: true,
+            watch: options.watchTools ?? false,
             loadBuiltins: true
         });
 
@@ -416,12 +417,15 @@ export class GrokAgent extends EventEmitter {
     // Reload dynamic tools
     async reloadDynamicTools(): Promise<void> {
         if (this.toolLoader) {
-            await this.toolLoader.reloadTools();
+            await this.toolLoader.reloadAllTools();
         }
     }
 
     // Clean up resources
     dispose(): void {
         this.tokenCounter.dispose();
+        if (this.toolLoader) {
+            this.toolLoader.cleanup();
+        }
     }
 }

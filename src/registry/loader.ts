@@ -6,10 +6,12 @@ import * as fs from 'fs/promises';
 import * as fsSync from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import * as crypto from 'crypto';
 import { fileURLToPath, pathToFileURL } from 'url';
-import {ToolDefinition, ToolRegistry} from './types';
+import {ToolDefinition, ToolRegistry, RegisteredTool} from './types';
 import { debug } from '../utils/debug-logger';
 import { builtInTools } from './builtin-tools';
+import { loadBuiltInToolsFromManifest } from './manifest-loader';
 
 /**
  * Options for loading tools
@@ -50,8 +52,9 @@ export interface LoaderOptions {
  */
 export class ToolLoader {
     private options: Required<LoaderOptions>;
-    private loadedTools = new Map<string, string>(); // toolId -> filePath
+    private loadedTools = new Map<string, { path: string; hash: string }>(); // toolId -> {filePath, hash}
     private watcherCleanup: (() => void)[] = [];
+    private fileWatchers = new Map<string, fsSync.FSWatcher>(); // filePath -> watcher
 
     constructor(private registry: ToolRegistry, options: LoaderOptions = {}) {
         // Get user home directory in a cross-platform way
@@ -96,20 +99,27 @@ export class ToolLoader {
      */
     private async loadBuiltinTools(): Promise<void> {
         try {
-            debug.log(`[ToolLoader] Loading ${builtInTools.length} built-in tools`);
+            // Try to load from manifest first, fall back to static imports
+            const tools = await loadBuiltInToolsFromManifest();
+            
+            debug.log(`[ToolLoader] Loading ${tools.length} built-in tools`);
             
             // Register all built-in tools directly
-            for (const tool of builtInTools) {
+            for (const tool of tools) {
                 if (this.isValidTool(tool)) {
-                    this.registry.register(tool);
-                    this.loadedTools.set(tool.id, `builtin:${tool.id}`);
+                    const registeredTool = this.registry.register(tool);
+                    if (registeredTool) {
+                        registeredTool.hash = 'builtin';
+                        registeredTool.filePath = `builtin:${tool.id}`;
+                    }
+                    this.loadedTools.set(tool.id, { path: `builtin:${tool.id}`, hash: 'builtin' });
                     debug.log(`[ToolLoader] Loaded built-in tool: ${tool.id}`);
                 } else {
-                    debug.warn(`[ToolLoader] Invalid built-in tool: ${tool.id}`);
+                    debug.warn(`[ToolLoader] Invalid built-in tool`);
                 }
             }
             
-            debug.log(`[ToolLoader] Successfully loaded ${builtInTools.length} built-in tools`);
+            debug.log(`[ToolLoader] Successfully loaded ${tools.length} built-in tools`);
         } catch (error) {
             debug.warn('[ToolLoader] Failed to load built-in tools:', error);
         }
@@ -146,6 +156,18 @@ export class ToolLoader {
             return;
         }
 
+        // Check if this is a package-managed tool directory with 'current' symlink
+        const currentLink = entries.find(entry => entry.name === 'current' && entry.isSymbolicLink());
+        if (currentLink) {
+            // This is a versioned tool directory, load from current version
+            const currentPath = path.join(directory, 'current', 'index.js');
+            if (await this.exists(currentPath)) {
+                debug.log(`[ToolLoader] Found package-managed tool at ${currentPath}`);
+                await this.loadToolFile(currentPath);
+                return; // Don't scan subdirectories for versioned tools
+            }
+        }
+
         // Process files first
         const files = entries
             .filter(entry => entry.isFile() && this.isToolFile(entry.name))
@@ -174,6 +196,20 @@ export class ToolLoader {
     private async loadToolFile(filePath: string): Promise<void> {
         try {
             debug.log(`[ToolLoader] Attempting to load: ${filePath}`);
+            
+            // Compute file hash
+            const fileHash = await this.computeFileHash(filePath);
+            debug.log(`[ToolLoader] File hash for ${filePath}: ${fileHash.substring(0, 8)}...`);
+            
+            // Check if tool is already loaded with same hash
+            const existingEntry = Array.from(this.loadedTools.entries())
+                .find(([_, info]) => info.path === filePath);
+            
+            if (existingEntry && existingEntry[1].hash === fileHash) {
+                debug.log(`[ToolLoader] Tool already loaded with same version: ${existingEntry[0]}`);
+                return;
+            }
+            
             // Dynamic import
             const moduleExports = await this.importModule(filePath);
             debug.log(`[ToolLoader] Module exports for ${filePath}:`, Object.keys(moduleExports));
@@ -193,14 +229,26 @@ export class ToolLoader {
                 return;
             }
 
-            // Unregister old version if exists
+            // Unload old version if exists
             if (this.loadedTools.has(tool.id)) {
-                await this.registry.unregister(tool.id);
+                const oldInfo = this.loadedTools.get(tool.id)!;
+                if (oldInfo.hash !== fileHash) {
+                    debug.log(`[ToolLoader] Tool ${tool.id} has changed, unloading old version`);
+                    await this.unloadTool(tool.id);
+                } else {
+                    debug.log(`[ToolLoader] Tool ${tool.id} unchanged, skipping reload`);
+                    return;
+                }
             }
 
-            // Register the tool
-            this.registry.register(tool);
-            this.loadedTools.set(tool.id, filePath);
+            // Register the tool with hash info
+            const registeredTool = this.registry.register(tool);
+            if (registeredTool) {
+                registeredTool.hash = fileHash;
+                registeredTool.filePath = filePath;
+            }
+            
+            this.loadedTools.set(tool.id, { path: filePath, hash: fileHash });
 
             debug.log(`[ToolLoader] Loaded tool: ${tool.id} from ${filePath}`);
         } catch (error) {
@@ -358,6 +406,77 @@ export class ToolLoader {
     }
 
     /**
+     * Compute hash of a file
+     */
+    private async computeFileHash(filePath: string): Promise<string> {
+        try {
+            const content = await fs.readFile(filePath);
+            return crypto.createHash('sha256').update(content).digest('hex');
+        } catch (error) {
+            debug.error(`[ToolLoader] Failed to compute hash for ${filePath}:`, error);
+            return '';
+        }
+    }
+
+    /**
+     * Unload a tool and run cleanup
+     */
+    private async unloadTool(toolId: string): Promise<void> {
+        debug.log(`[ToolLoader] Unloading tool: ${toolId}`);
+        
+        const tool = this.registry.get(toolId);
+        if (tool && tool.definition.cleanup) {
+            try {
+                const context = {
+                    registry: this.registry,
+                    workingDirectory: process.cwd()
+                };
+                await tool.definition.cleanup(context);
+                debug.log(`[ToolLoader] Cleanup completed for ${toolId}`);
+            } catch (error) {
+                debug.error(`[ToolLoader] Cleanup failed for ${toolId}:`, error);
+            }
+        }
+        
+        // Unregister from registry
+        await this.registry.unregister(toolId);
+        
+        // Remove from loaded tools
+        this.loadedTools.delete(toolId);
+    }
+
+    /**
+     * Reload all tools (for --watch-tools command)
+     */
+    async reloadAllTools(): Promise<void> {
+        debug.log('[ToolLoader] Reloading all tools...');
+        
+        // Unload all currently loaded tools
+        const toolIds = Array.from(this.loadedTools.keys());
+        for (const toolId of toolIds) {
+            // Skip built-in tools
+            if (this.loadedTools.get(toolId)?.path.startsWith('builtin:')) {
+                continue;
+            }
+            await this.unloadTool(toolId);
+        }
+        
+        // Clear module cache for dynamic imports
+        if (typeof require !== 'undefined' && require.cache) {
+            for (const [toolId, info] of this.loadedTools) {
+                if (info.path && !info.path.startsWith('builtin:')) {
+                    delete require.cache[info.path];
+                }
+            }
+        }
+        
+        // Reload all tools
+        await this.loadTools();
+        
+        debug.log('[ToolLoader] Tool reload complete');
+    }
+
+    /**
      * Set up file watchers for hot reloading
      */
     private async setupWatchers(): Promise<void> {
@@ -399,8 +518,8 @@ export class ToolLoader {
      * Find tool ID by file path
      */
     private findToolByPath(filePath: string): string | undefined {
-        for (const [toolId, path] of this.loadedTools.entries()) {
-            if (path === filePath) return toolId;
+        for (const [toolId, info] of this.loadedTools.entries()) {
+            if (info.path === filePath) return toolId;
         }
         return undefined;
     }
@@ -408,10 +527,11 @@ export class ToolLoader {
     /**
      * Get loaded tools info
      */
-    getLoadedTools(): Array<{ toolId: string; filePath: string }> {
-        return Array.from(this.loadedTools.entries()).map(([toolId, filePath]) => ({
+    getLoadedTools(): Array<{ toolId: string; filePath: string; hash: string }> {
+        return Array.from(this.loadedTools.entries()).map(([toolId, info]) => ({
             toolId,
-            filePath
+            filePath: info.path,
+            hash: info.hash
         }));
     }
 
@@ -428,8 +548,10 @@ export class ToolLoader {
         this.loadedTools.clear();
         
         // Reload each tool
-        for (const [_, filePath] of currentTools) {
-            await this.loadToolFile(filePath);
+        for (const [_, info] of currentTools) {
+            if (!info.path.startsWith('builtin:')) {
+                await this.loadToolFile(info.path);
+            }
         }
     }
 

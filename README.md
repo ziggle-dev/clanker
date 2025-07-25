@@ -83,6 +83,51 @@ React-powered terminal interface with:
 - Full operation history
 - Rollback capabilities
 
+## 📦 Package Manager
+
+Clanker includes a built-in package manager for discovering, installing, and managing tools:
+
+### Quick Start
+```bash
+# Search for tools
+clanker --search "git"           # or -S
+
+# Install tools
+clanker --install ziggler/core   # or -I
+clanker --install community/git-tools@1.2.0
+
+# List your tools
+clanker --list-installed         # or -L
+
+# Update tools
+clanker --update ziggler/core
+
+# Uninstall tools  
+clanker --uninstall community/git-tools  # or -U
+```
+
+### Creating Your Own Tools
+
+```bash
+# Create a new tool project
+npx create-clanker-tool
+
+# Develop with hot reloading
+npm run dev:watch
+
+# Publish to the registry
+npm run publish:tool
+```
+
+[🚀 Quick Start Guide →](docs/quick-start-tool-dev.md) | [📚 Full Documentation →](docs/package-manager.md)
+
+### Tool Development Workflow
+
+1. **Create**: Use `create-clanker-tool` to scaffold your project
+2. **Develop**: Test locally with `npm run install:local`
+3. **Watch**: Use `--watch-tools` for hot reloading during development
+4. **Publish**: Submit to registry with `--publish`
+
 ## Philosophy
 
 Traditional AI assistants are suggestion engines. Clanker is different—it's an **action engine**.
@@ -98,8 +143,9 @@ Clanker says:
 ## Documentation
 
 - 🚀 **[Getting Started](docs/getting-started.md)** - Installation and first steps
-- 🏗️ **[Architecture](docs/architecture.md)** - How Clanker works under the hood
+- 📦 **[Package Manager](docs/package-manager.md)** - Tool discovery and management
 - 🔧 **[Tool Development](docs/tools.md)** - Create custom tools
+- 🏗️ **[Architecture](docs/architecture.md)** - How Clanker works under the hood
 - 📚 **[API Reference](docs/api.md)** - Complete API documentation
 
 ## Use Cases

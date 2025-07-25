@@ -143,6 +143,8 @@ export interface RegisteredTool {
     lastExecuted?: Date;
     executionCount: number;
     totalDuration: number; // Total execution time in milliseconds
+    hash?: string; // Hash of the tool file for version tracking
+    filePath?: string; // Path to the tool file
 }
 
 // ============================================================================

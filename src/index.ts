@@ -9,6 +9,7 @@ import * as path from "path";
 import * as os from "os";
 import {ConfirmationService} from "./utils/confirmation-service";
 import {setDebugMode, debug} from "./utils/debug-logger";
+import {PackageManager} from "./package-manager";
 // Display functions no longer needed - using React components instead
 
 // Load environment variables
@@ -25,7 +26,12 @@ function loadApiKey(): string | undefined {
         // Try to load from user settings file
         try {
             const homeDir = os.homedir();
-            const settingsFile = path.join(homeDir, ".clanker", "user-settings.json");
+            // Try user-settings.json first (legacy), then settings.json
+            let settingsFile = path.join(homeDir, ".clanker", "user-settings.json");
+            
+            if (!fs.existsSync(settingsFile)) {
+                settingsFile = path.join(homeDir, ".clanker", "settings.json");
+            }
 
             if (fs.existsSync(settingsFile)) {
                 const settings = JSON.parse(fs.readFileSync(settingsFile, "utf8"));
@@ -81,7 +87,8 @@ async function processPromptHeadless(
     baseURL?: string,
     model?: string,
     loadDynamicTools?: boolean,
-    dynamicToolsPath?: string
+    dynamicToolsPath?: string,
+    watchTools?: boolean
 ): Promise<void> {
     try {
         const agent = new GrokAgent({
@@ -89,7 +96,8 @@ async function processPromptHeadless(
             baseURL,
             model: model || process.env.GROK_MODEL || "grok-3-latest",
             loadDynamicTools,
-            dynamicToolsPath
+            dynamicToolsPath,
+            watchTools
         });
 
         // Wait for tools to load
@@ -167,13 +175,57 @@ program
         "--list-tools",
         "list all available tools and exit"
     )
+    .option(
+        "-I, --install <tool>",
+        "install a tool (format: org/name or org/name@version)"
+    )
+    .option(
+        "-U, --uninstall <tool>",
+        "uninstall a tool (format: org/name)"
+    )
+    .option(
+        "-S, --search <query>",
+        "search for tools in the registry"
+    )
+    .option(
+        "-L, --list-installed",
+        "list all installed tools"
+    )
+    .option(
+        "--update <tool>",
+        "update a tool to the latest version"
+    )
+    .option(
+        "--clear-cache",
+        "clear the package manager cache"
+    )
+    .option(
+        "-W, --watch-tools",
+        "watch and reload tools from ~/.clanker/tools"
+    )
+    .option(
+        "--publish",
+        "publish your tool to the Clanker registry"
+    )
+    .option(
+        "--add-repo <url>",
+        "add a repository to search for tools"
+    )
+    .option(
+        "--remove-repo <url>",
+        "remove a repository from the search list"
+    )
+    .option(
+        "--list-repos",
+        "list all configured repositories"
+    )
     .action(async (options) => {
         // Set debug mode if flag is present
         if (options.debug) {
-            setDebugMode(true);
+            setDebugMode(true, true); // Enable file logging when debug is on
             debug.log('Debug mode enabled');
         }
-        
+
         if (options.directory) {
             try {
                 process.chdir(options.directory);
@@ -187,6 +239,68 @@ program
         }
 
         try {
+            // Handle package manager commands first (they don't need API key)
+            const packageManager = new PackageManager();
+
+            if (options.install) {
+                await packageManager.install(options.install, {force: false});
+                return;
+            }
+
+            if (options.uninstall) {
+                await packageManager.uninstall(options.uninstall);
+                return;
+            }
+
+            if (options.search) {
+                await packageManager.search(options.search, {limit: 20});
+                return;
+            }
+
+            if (options.listInstalled) {
+                await packageManager.listInstalled();
+                return;
+            }
+
+            if (options.update) {
+                await packageManager.update(options.update);
+                return;
+            }
+
+            if (options.clearCache) {
+                await packageManager.clearCache();
+                return;
+            }
+            
+            // Handle publish command
+            if (options.publish) {
+                const {publishTool} = await import('./package-manager/publisher');
+                await publishTool();
+                return;
+            }
+            
+            // Handle repository management commands
+            if (options.addRepo) {
+                const {RepositoryManager} = await import('./package-manager/repository-manager');
+                const repoManager = new RepositoryManager();
+                await repoManager.addRepository(options.addRepo);
+                return;
+            }
+            
+            if (options.removeRepo) {
+                const {RepositoryManager} = await import('./package-manager/repository-manager');
+                const repoManager = new RepositoryManager();
+                await repoManager.removeRepository(options.removeRepo);
+                return;
+            }
+            
+            if (options.listRepos) {
+                const {RepositoryManager} = await import('./package-manager/repository-manager');
+                const repoManager = new RepositoryManager();
+                await repoManager.listRepositories();
+                return;
+            }
+
             // Get API key from options, environment, or user settings
             const apiKey = options.apiKey || loadApiKey();
             const baseURL = options.baseUrl || loadBaseURL();
@@ -206,7 +320,8 @@ program
                     baseURL,
                     model,
                     loadDynamicTools: options.loadDynamicTools,
-                    dynamicToolsPath: options.toolsPath
+                    dynamicToolsPath: options.toolsPath,
+                    watchTools: options.watchTools
                 });
 
                 // Wait for tools to load
@@ -238,7 +353,8 @@ program
                     baseURL,
                     model,
                     options.loadDynamicTools,
-                    options.toolsPath
+                    options.toolsPath,
+                    options.watchTools
                 );
                 return;
             }
@@ -257,13 +373,13 @@ program
 
             // Handle SIGINT (Ctrl+C) to prevent default termination
             // Import store actions for proper integration
-            const { actions, store } = await import("./store");
-            
+            const {actions, store} = await import("./store");
+
             process.on('SIGINT', () => {
                 // Use the store to manage exit confirmation state
                 const state = store;
                 const now = Date.now();
-                
+
                 if (state.exitConfirmation && state.exitConfirmationTime && (now - state.exitConfirmationTime) < 3000) {
                     // Second Ctrl+C within 3 seconds - exit
                     process.exit(0);
@@ -282,9 +398,9 @@ program
             const {SettingsManager, ProviderModels} = await import("./utils/settings-manager");
             const settingsManager = SettingsManager.getInstance();
             const {settings, isValid} = settingsManager.loadSettings();
-            
+
             let agent: GrokAgent | undefined;
-            
+
             // Try to create agent if we have valid settings
             if (isValid && settings.apiKey) {
                 try {
@@ -296,23 +412,24 @@ program
                         const providerConfig = ProviderModels[settings.provider || 'grok'];
                         configuredBaseURL = providerConfig.baseURL;
                     }
-                    
+
                     agent = new GrokAgent({
                         apiKey: settings.apiKey,
                         baseURL: configuredBaseURL || baseURL,
                         model: model || settings.model || ProviderModels.grok.defaultModel,
                         loadDynamicTools: options.loadDynamicTools,
-                        dynamicToolsPath: options.toolsPath
+                        dynamicToolsPath: options.toolsPath,
+                        watchTools: options.watchTools
                     });
                 } catch (error) {
                     console.error('Failed to create agent with saved settings:', error);
                 }
             }
-            
+
             // Always render AppContainer - it will handle showing settings if needed
             const {AppContainer} = await import("./ui/containers/AppContainer");
             const app = render(React.createElement(AppContainer, {agent}));
-            
+
             // Ensure we exit cleanly on unmount
             app.waitUntilExit().then(() => {
                 process.exit(0);

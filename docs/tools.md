@@ -202,28 +202,42 @@ Example: "Ask the user which branch to deploy"
 
 ## Creating Custom Tools
 
+> **Quick Start**: Use `npx create-clanker-tool` to scaffold a new tool project with all the build configuration ready to go. See the [Package Manager Documentation](package-manager.md#creating-tools) for details.
+
 ### Basic Tool Structure
 
-Create a new file in `.clanker/tools/` directory:
+Tools can be created manually in `.clanker/tools/` directory or using our scaffolding tool:
 
 ```typescript
-// ~/.clanker/tools/my-custom-tool.ts
-import { createTool } from '@ziggler/clanker';
-import { z } from 'zod';
+// Using the scaffolding tool (recommended)
+// npx create-clanker-tool
 
-export default createTool({
+// Or manually: ~/.clanker/tools/my-custom-tool.js
+export default {
   id: 'my_custom_tool',
   name: 'My Custom Tool',
   description: 'Does something useful',
   
-  // Define input schema using Zod
-  inputSchema: z.object({
-    input: z.string().describe('Tool input'),
-    count: z.number().optional().describe('Optional count')
-  }),
+  // Define arguments
+  arguments: [
+    {
+      name: 'input',
+      type: 'string',
+      description: 'Tool input',
+      required: true
+    },
+    {
+      name: 'count',
+      type: 'number',
+      description: 'Optional count',
+      required: false,
+      default: 1
+    }
+  ],
   
   // Execute function
-  execute: async ({ input, count = 1 }) => {
+  execute: async (args, context) => {
+    const { input, count = 1 } = args;
     try {
       // Your tool logic here
       const result = processInput(input, count);
@@ -239,7 +253,7 @@ export default createTool({
       };
     }
   }
-});
+};
 ```
 
 ### Advanced Tool Features
@@ -247,7 +261,7 @@ export default createTool({
 #### 1. Custom UI Rendering
 
 ```typescript
-export default createTool({
+export default {
   // ... basic config
   
   renderResult: ({ result, isExecuting }) => {
@@ -262,13 +276,13 @@ export default createTool({
       </Box>
     );
   }
-});
+};
 ```
 
 #### 2. Progress Reporting
 
 ```typescript
-export default createTool({
+export default {
   // ... basic config
   
   execute: async ({ input }, { reportProgress }) => {
@@ -282,13 +296,13 @@ export default createTool({
     reportProgress(100, 'Complete!');
     return { success: true };
   }
-});
+};
 ```
 
 #### 3. Using Other Tools
 
 ```typescript
-export default createTool({
+export default {
   // ... basic config
   
   execute: async ({ files }, { registry }) => {
@@ -296,7 +310,7 @@ export default createTool({
     for (const file of files) {
       const content = await registry.execute('read_file', { 
         path: file 
-      });
+      };
       
       if (content.success) {
         // Process content
@@ -305,13 +319,13 @@ export default createTool({
     
     return { success: true };
   }
-});
+};
 ```
 
 #### 4. Confirmation Handling
 
 ```typescript
-export default createTool({
+export default {
   // ... basic config
   requiresConfirmation: true,
   
@@ -323,7 +337,7 @@ export default createTool({
       'Related dependencies may break'
     ]
   })
-});
+};
 ```
 
 ### Tool Best Practices
@@ -374,7 +388,7 @@ For long operations:
 Document your tool well:
 
 ```typescript
-export default createTool({
+export default {
   id: 'analyze_deps',
   name: 'Analyze Dependencies',
   description: 'Analyzes npm dependencies for security and updates',
@@ -395,27 +409,99 @@ export default createTool({
     'May take time for large projects',
     'Results are cached for 1 hour'
   ]
-});
+};
+```
+
+### Tool Development Workflow
+
+#### 1. Create Your Tool
+
+```bash
+# Use the scaffolding tool
+npx create-clanker-tool
+
+# Follow the prompts to set up your project
+```
+
+#### 2. Develop and Test
+
+```bash
+# Install dependencies
+npm install
+
+# Test locally
+npm run dev
+
+# Build and install for testing
+npm run build
+npm run install:local
+
+# Test with Clanker
+clanker --prompt "Use my_tool to..."
+```
+
+#### 3. Hot Reloading During Development
+
+```bash
+# Terminal 1: Watch and rebuild your tool
+npm run dev:watch
+
+# Terminal 2: Run Clanker with tool watching
+clanker --watch-tools
+```
+
+#### 4. Publish Your Tool
+
+```bash
+# Prepare for publishing
+npm run publish:tool
+
+# This will:
+# - Build and bundle your tool
+# - Generate manifest.json
+# - Create PR template
+# - Open GitHub for submission
 ```
 
 ### Tool Distribution
 
-#### Sharing Tools
+#### Using the Package Manager
 
-1. Create a GitHub repository for your tools
-2. Add installation instructions
-3. Consider publishing to npm as `@yourname/clanker-tools`
-
-#### Installing Community Tools
+Clanker includes a built-in package manager for easy tool distribution:
 
 ```bash
-# Clone tool repository
-git clone https://github.com/user/awesome-clanker-tools
-cp awesome-clanker-tools/*.ts ~/.clanker/tools/
+# Search for tools
+clanker --search "database"
 
-# Or via npm (if published)
-npm install -g @user/clanker-tools
+# Install tools
+clanker --install org/tool-name
+clanker --install org/tool-name@1.2.0
+
+# List installed tools
+clanker --list-installed
+
+# Update tools
+clanker --update org/tool-name
+
+# Uninstall tools
+clanker --uninstall org/tool-name
 ```
+
+#### Publishing to the Registry
+
+1. Create your tool using `create-clanker-tool`
+2. Test thoroughly with local installation
+3. Run `npm run publish:tool` to validate structure
+4. Submit PR to [clanker-tools](https://github.com/ziggle-dev/clanker-tools) with:
+   - Source code in `src/` directory
+   - `package.json` with build scripts
+   - Documentation in `README.md`
+   - **NO compiled files** (bin/, dist/, etc.)
+5. After merge:
+   - CI/CD builds your tool automatically
+   - Available to all users via `clanker --install`
+
+See the [Package Manager Documentation](package-manager.md) for complete details.
 
 ### Tool Ideas
 
@@ -437,14 +523,14 @@ Begin with a basic tool and add features incrementally:
 
 ```typescript
 // Version 1: Basic
-export default createTool({
+export default {
   id: 'count_lines',
   execute: async ({ path }) => {
     const content = await fs.readFile(path, 'utf-8');
     const lines = content.split('\n').length;
     return { success: true, output: `${lines} lines` };
   }
-});
+};
 ```
 
 ### 2. Test Thoroughly
@@ -475,12 +561,12 @@ Design tools that work well together:
 // Tool 1: Find files
 const files = await registry.execute('find_files', { 
   pattern: '*.test.ts' 
-});
+};
 
 // Tool 2: Run tests on found files
 const results = await registry.execute('run_tests', { 
   files: files.output 
-});
+};
 ```
 
 ## Conclusion

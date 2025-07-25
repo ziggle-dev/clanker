@@ -10,16 +10,18 @@
   "files": [
     "dist/",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "dist/tool-manifest.json"
   ],
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node scripts/generate-tool-manifest.js",
     "dev": "node --import tsx src/index.ts",
     "test:registry": "tsx src/test-registry.ts",
     "start": "node dist/index.js",
     "start:registry": "node dist/index-registry.js",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "validate-tool": "node scripts/validate-tool-submission.js"
   },
   "keywords": [
     "agent",
@@ -60,6 +62,7 @@
     "ink-gradient": "^3.0.0",
     "ink-markdown": "^1.0.4",
     "ink-select-input": "^6.2.0",
+    "open": "^10.2.0",
     "openai": "^5.10.2",
     "prismjs": "^1.30.0",
     "react": "19.1.0",
@@ -80,7 +83,9 @@
     "@types/react": "19.1.8",
     "@typescript-eslint/eslint-plugin": "^8.38.0",
     "@typescript-eslint/parser": "^8.38.0",
+    "esbuild": "^0.25.8",
     "eslint": "^9.31.0",
+    "glob": "^11.0.3",
     "globals": "^16.3.0",
     "tsup": "^8.5.0",
     "tsx": "^4.20.3",
