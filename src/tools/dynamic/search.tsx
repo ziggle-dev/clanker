@@ -61,7 +61,7 @@ const searchTool = createTool()
 
     // Execute
     .execute(async (args, context) => {
-        const {
+        let {
             query,
             search_type = 'both',
             include_pattern,
@@ -73,6 +73,25 @@ const searchTool = createTool()
             file_types,
             include_hidden = false
         } = args as unknown as SearchArgs;
+
+        // Parse special syntax: "search ~> *.py *.txt"
+        // This means search for files matching these patterns
+        if (query.includes('~>')) {
+            const parts = query.split('~>').map(p => p.trim());
+            if (parts.length === 2 && parts[0] === '') {
+                // Format: "~> *.py *.txt"
+                search_type = 'files';
+                const patterns = parts[1].split(/\s+/).filter(p => p);
+                if (patterns.length > 0) {
+                    query = patterns[0];
+                    // Convert multiple patterns to a single glob pattern
+                    if (patterns.length > 1) {
+                        query = `{${patterns.join(',')}}`;
+                    }
+                    regex = true; // Enable regex/glob matching
+                }
+            }
+        }
 
         context.logger?.debug(`Searching for: ${query}`);
         context.logger?.debug(`Search type: ${search_type}`);
@@ -270,7 +289,7 @@ async function performFileSearch(options: {
     max_results: number;
 }): Promise<string[]> {
     const results: string[] = [];
-    const isRegex = options.query.includes('*') || options.query.includes('?');
+    const isRegex = options.query.includes('*') || options.query.includes('?') || options.query.includes('{');
     const searchPattern = options.case_sensitive ? options.query : options.query.toLowerCase();
 
     // Walk directory tree
@@ -320,7 +339,8 @@ async function performFileSearch(options: {
 
                 let matches = false;
                 if (isRegex) {
-                    matches = matchesGlob(nameToCheck, searchPattern) || matchesGlob(pathToCheck, searchPattern);
+                    // Use the original query for glob matching (not lowercased)
+                    matches = matchesGlob(entry.name, options.query) || matchesGlob(relativePath, options.query);
                 } else {
                     matches = nameToCheck.includes(searchPattern) || pathToCheck.includes(searchPattern);
                 }
@@ -347,13 +367,33 @@ async function performFileSearch(options: {
  * Simple glob matching
  */
 function matchesGlob(path: string, pattern: string): boolean {
+    // Handle brace expansion like {*.py,*.txt}
+    if (pattern.includes('{') && pattern.includes('}')) {
+        const match = pattern.match(/\{([^}]+)\}/);
+        if (match) {
+            const alternatives = match[1].split(',');
+            return alternatives.some(alt => {
+                const expandedPattern = pattern.replace(match[0], alt);
+                return matchesGlob(path, expandedPattern);
+            });
+        }
+    }
+
     // Convert glob to regex
     let regex = pattern
         .replace(/\./g, '\\.')
-        .replace(/\*/g, '.*')
+        .replace(/\*\*/g, '§§§') // Temporary placeholder for **
+        .replace(/\*/g, '[^/]*')  // * matches anything except /
+        .replace(/§§§/g, '.*')    // ** matches anything including /
         .replace(/\?/g, '.');
 
     try {
+        // For simple patterns like *.py, match just the filename
+        if (!pattern.includes('/')) {
+            const filename = path.split('/').pop() || path;
+            return new RegExp(`^${regex}$`).test(filename);
+        }
+        // For path patterns, match the full path
         return new RegExp(`^${regex}$`).test(path);
     } catch {
         return false;

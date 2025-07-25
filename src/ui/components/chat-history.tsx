@@ -7,6 +7,8 @@ import {executionRegistry as ExecutionRegistryType, ToolExecution} from "../../r
 import {ToolRegistry} from "../../registry/types";
 import {MarkdownRenderer} from "../utils/markdown-renderer";
 import {VirtualScroll} from "./VirtualScroll";
+import Gradient from 'ink-gradient';
+import BigText from 'ink-big-text';
 
 /**
  * Format tool execution display - shows tool name and primary argument
@@ -218,8 +220,9 @@ export function ChatHistory({
     // Get terminal dimensions
     const {stdout} = useStdout();
     const terminalHeight = stdout?.rows || 30;
-    // Account for: header (8) + input (4) + status bar (2) + loading (2) + margins (4) = 20
-    const maxHeight = Math.max(5, terminalHeight - 20);
+    // Account for: input (4) + status bar (2) + loading (2) + margins (4) = 12
+    // No header now since logo is part of scrollable content
+    const maxHeight = Math.max(5, terminalHeight - 12);
 
     // Filter out executing tool messages when in confirmation mode
     const filteredMessages = isConfirmationActive
@@ -289,6 +292,26 @@ export function ChatHistory({
         
         return baseHeight;
     }, [filteredMessages, executionRegistry]);
+
+    // Show logo only when there are no messages
+    if (messages.length === 0) {
+        return (
+            <Box flexDirection="column" height={maxHeight} paddingX={2}>
+                <Box paddingX={2} flexShrink={0} height={8}>
+                    <Box justifyContent="center" marginBottom={1}>
+                        <Gradient name="passion">
+                            <BigText text="CLANK" font="3d" />
+                        </Gradient>
+                    </Box>
+                    <Box flexDirection="column" marginBottom={0}>
+                        <Text dimColor>
+                            Type your request in natural language. Type '/exit' or press Ctrl+C to quit.
+                        </Text>
+                    </Box>
+                </Box>
+            </Box>
+        );
+    }
 
     return (
         <VirtualScroll 
