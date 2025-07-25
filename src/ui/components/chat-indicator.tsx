@@ -70,11 +70,10 @@ export const ChatProgress: React.FC<{ elapsedSeconds: number }> = React.memo(({e
 
     if (!isActive) return null;
 
-    // Create animated dots pattern with bidirectional flow
+    // Create animated dots pattern with single left-to-right flow
     const createDotsPattern = () => {
         const dots = [];
         const dotCount = Math.min(maxBarWidth, 80);
-        const midPoint = dotCount / 2;
 
         // Create different patterns based on token flow
         const inputTokens = snap.inputTokenCount;
@@ -85,34 +84,31 @@ export const ChatProgress: React.FC<{ elapsedSeconds: number }> = React.memo(({e
         const idleWave = Math.sin(idleFrame * 0.02) * 0.5 + 0.5;
 
         for (let i = 0; i < dotCount; i++) {
-            const distanceFromCenter = Math.abs(i - midPoint) / midPoint;
+            const position = i / dotCount;
 
-            // Create bidirectional wave effect
+            // Create single wave effect flowing left to right
             let intensity = 0;
             let color = 'gray';
 
-            if (outputTokens > 0 && i >= midPoint) {
-                // Right side - output tokens (flowing right)
-                const rightPosition = (i - midPoint) / midPoint;
-                const rightWave = Math.sin((rightPosition * Math.PI * 2 - progressFrame * 0.03) + Math.PI);
-                intensity = Math.max(0, rightWave) * (1 - rightPosition * 0.3);
-                color = 'cyan';
-            }
-
-            if (inputTokens > 0 && i < midPoint) {
-                // Left side - input tokens (flowing left)
-                const leftPosition = (midPoint - i) / midPoint;
-                const leftWave = Math.sin((leftPosition * Math.PI * 2 + progressFrame * 0.03) + Math.PI);
-                const leftIntensity = Math.max(0, leftWave) * (1 - leftPosition * 0.3);
-                if (leftIntensity > intensity) {
-                    intensity = leftIntensity;
-                    color = 'green';
+            if (totalTokens > 0) {
+                // Single wave moving left to right
+                const wavePosition = (progressFrame * 0.02) % 1.0; // Wave position from 0 to 1
+                const distanceFromWave = Math.abs(position - wavePosition);
+                
+                // Create a wave with width
+                const waveWidth = 0.3;
+                if (distanceFromWave < waveWidth) {
+                    intensity = 1.0 - (distanceFromWave / waveWidth);
+                    // Color based on token type dominance
+                    if (outputTokens > inputTokens) {
+                        color = 'cyan';
+                    } else {
+                        color = 'green';
+                    }
                 }
-            }
-
-            // Add idle animation when no tokens
-            if (totalTokens === 0) {
-                intensity = idleWave * (1 - distanceFromCenter) * 0.6;
+            } else {
+                // Idle animation when no tokens
+                intensity = idleWave * (1 - Math.abs(position - 0.5) * 2) * 0.6;
                 color = 'gray';
             }
 

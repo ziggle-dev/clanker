@@ -42,16 +42,16 @@ export const useMessageInput = ({
             };
             messageRegistry.addMessage(userMessage);
 
-            // Count input tokens
+            // Count input tokens (just the user's message for now)
             const tokenCounter = new TokenCounter(snap.model || 'grok-3-mini');
-            const inputTokens = tokenCounter.countTokens(userMessage.content);
-            actions.updateInputTokenCount(inputTokens);
+            const userInputTokens = tokenCounter.countTokens(userMessage.content);
             tokenCounter.dispose();
 
             actions.setInputValue("");
             actions.setProcessing(true);
             processingStartTime.current = Date.now();
             actions.updateTokenCount(0);
+            actions.updateOutputTokenCount(0); // Reset output tokens for new message
 
             // Declare these outside try block for access in finally
             let currentAssistantMessage: MessageRegistryMessage | null = null;
@@ -79,6 +79,18 @@ export const useMessageInput = ({
                     '- Before presenting findings from research or file exploration, summarize the key insights\n' +
                     '- When dealing with complex codebases, summarize the structure and relationships\n' +
                     'The summarize tool helps maintain clarity and ensures important information is highlighted efficiently.';
+
+                // Count total input tokens including all context
+                const contextTokenCounter = new TokenCounter(snap.model || 'grok-3-mini');
+                // Count message tokens
+                const messageTokens = contextTokenCounter.countMessageTokens(messages as any);
+                // Count system prompt tokens if present
+                const systemPromptTokens = systemPrompt ? contextTokenCounter.countTokens(systemPrompt) : 0;
+                // Total input tokens
+                const totalInputTokens = messageTokens + systemPromptTokens;
+                actions.updateInputTokenCount(totalInputTokens);
+                contextTokenCounter.dispose();
+                debug.log(`[useMessageInput] Total input tokens: ${totalInputTokens} (messages: ${messageTokens}, system: ${systemPromptTokens})`);
 
                 actions.setStreaming(true);
                 actions.setProcessing(false);
