@@ -30,7 +30,7 @@ export const useMessageInput = ({
     
     // Refs for throttled updates
     const contentBufferRef = useRef<{ [messageId: string]: string }>({});
-    const updateTimerRef = useRef<{ [messageId: string]: NodeJS.Timeout | null }>({});
+    const updateTimerRef = useRef<{ [messageId: string]: ReturnType<typeof setTimeout> | null }>({});
 
     const sendMessage = useCallback(
         async (content: string) => {
@@ -44,7 +44,7 @@ export const useMessageInput = ({
 
             // Count input tokens (just the user's message for now)
             const tokenCounter = new TokenCounter(snap.model || 'grok-3-mini');
-            const userInputTokens = tokenCounter.countTokens(userMessage.content);
+            tokenCounter.countTokens(userMessage.content);
             tokenCounter.dispose();
 
             actions.setInputValue("");

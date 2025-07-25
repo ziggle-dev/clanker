@@ -63,6 +63,7 @@ export interface AppState {
     autoEditEnabled: boolean;
     vsCodeOpenEnabled: boolean;
     dangerousBypassPermission: boolean;
+    virtualScrollingEnabled: boolean;
     confirmationSettings: {
         alwaysEdit: boolean;
         alwaysBash: boolean;
@@ -130,6 +131,7 @@ export const store = proxy<AppState>({
     autoEditEnabled: false,
     vsCodeOpenEnabled: false,
     dangerousBypassPermission: false,
+    virtualScrollingEnabled: true,
     confirmationSettings: {
         alwaysEdit: false,
         alwaysBash: false,
@@ -419,6 +421,11 @@ export const actions = {
         actions.saveSettings();
     },
     
+    setVirtualScrolling(enabled: boolean) {
+        store.virtualScrollingEnabled = enabled;
+        actions.saveSettings();
+    },
+    
     updateConfirmationSettings(settings: Partial<AppState['confirmationSettings']>) {
         Object.assign(store.confirmationSettings, settings);
         actions.saveSettings();
@@ -457,6 +464,7 @@ export const actions = {
                 if (settings.autoEditEnabled !== undefined) store.autoEditEnabled = settings.autoEditEnabled;
                 if (settings.vsCodeOpenEnabled !== undefined) store.vsCodeOpenEnabled = settings.vsCodeOpenEnabled;
                 if (settings.dangerousBypassPermission !== undefined) store.dangerousBypassPermission = settings.dangerousBypassPermission;
+                if (settings.virtualScrollingEnabled !== undefined) store.virtualScrollingEnabled = settings.virtualScrollingEnabled;
                 if (settings.confirmationSettings) {
                     Object.assign(store.confirmationSettings, settings.confirmationSettings);
                 }
@@ -472,6 +480,7 @@ export const actions = {
                 autoEditEnabled: store.autoEditEnabled,
                 vsCodeOpenEnabled: store.vsCodeOpenEnabled,
                 dangerousBypassPermission: store.dangerousBypassPermission,
+                virtualScrollingEnabled: store.virtualScrollingEnabled,
                 confirmationSettings: store.confirmationSettings,
                 theme: store.theme,
                 model: store.model,

@@ -8,8 +8,7 @@ import {executionRegistry as ExecutionRegistryType} from '../registry/execution'
  */
 export const useExecutionTracking = (executionRegistry: typeof ExecutionRegistryType) => {
     // Subscribe to executions in the store
-    const snap = useSnapshot(store);
-    const executions = snap.executions;
+    useSnapshot(store);
 
     // Check if any tools are currently executing
     const hasExecutingTools = executionRegistry.getHistory().some(

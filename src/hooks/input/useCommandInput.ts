@@ -78,11 +78,11 @@ export function useCommandInput({ agent, messageRegistry }: UseCommandInputProps
                 // Otherwise, addMessage will generate a new ID
                 if (msg.id && currentMessages.some(m => m.id === msg.id)) {
                   // It's an existing message, preserve it
-                  const { id: _id, ...msgWithoutId } = msg;
+                  const { id, ...msgWithoutId } = msg;
                   messageRegistry.addMessage(msgWithoutId);
                 } else {
                   // It's a new message, add without ID
-                  const { id: _id, ...msgWithoutId } = msg;
+                  const { id, ...msgWithoutId } = msg;
                   messageRegistry.addMessage(msgWithoutId);
                 }
               });
@@ -90,7 +90,7 @@ export function useCommandInput({ agent, messageRegistry }: UseCommandInputProps
               // Handle direct array assignment (like setChatHistory([]))
               messageRegistry.clearMessages();
               fn.forEach((msg: MessageRegistryMessage) => {
-                const { id: _id, ...msgWithoutId } = msg;
+                const { id, ...msgWithoutId } = msg;
                 messageRegistry.addMessage(msgWithoutId);
               });
             }

@@ -19,16 +19,16 @@ const ToolConfirmationFormContent: React.FC<{
     const isApproved = values.approve || false;
     
     // Determine the border color based on operation type
-    const getBorderColor = () => {
-        const operation = options.operation.toLowerCase();
-        if (operation.includes('bash') || operation.includes('execute')) {
-            return 'red';
-        } else if (operation.includes('file') || operation.includes('write') || operation.includes('create')) {
-            return 'yellow';
-        } else {
-            return 'cyan';
-        }
-    };
+    // const getBorderColor = () => {
+    //     const operation = options.operation.toLowerCase();
+    //     if (operation.includes('bash') || operation.includes('execute')) {
+    //         return 'red';
+    //     } else if (operation.includes('file') || operation.includes('write') || operation.includes('create')) {
+    //         return 'yellow';
+    //     } else {
+    //         return 'cyan';
+    //     }
+    // };
     
     return (
         <>
@@ -119,16 +119,16 @@ export const ToolConfirmationScreen: React.FC<ToolConfirmationScreenProps> = ({
     };
     
     // Determine the border color based on operation type
-    const getBorderColor = () => {
-        const operation = options.operation.toLowerCase();
-        if (operation.includes('bash') || operation.includes('execute')) {
-            return 'red';
-        } else if (operation.includes('file') || operation.includes('write') || operation.includes('create')) {
-            return 'yellow';
-        } else {
-            return 'cyan';
-        }
-    };
+    // const getBorderColor = () => {
+    //     const operation = options.operation.toLowerCase();
+    //     if (operation.includes('bash') || operation.includes('execute')) {
+    //         return 'red';
+    //     } else if (operation.includes('file') || operation.includes('write') || operation.includes('create')) {
+    //         return 'yellow';
+    //     } else {
+    //         return 'cyan';
+    //     }
+    // };
     
     return (
         <Box
@@ -140,14 +140,14 @@ export const ToolConfirmationScreen: React.FC<ToolConfirmationScreenProps> = ({
         >
             <Box
                 borderStyle="round"
-                borderColor={getBorderColor()}
+                borderColor="cyan"
                 paddingX={2}
                 paddingY={1}
                 width={80}
                 flexDirection="column"
             >
                 <Box marginBottom={1} justifyContent="center">
-                    <Text bold color={getBorderColor()}>
+                    <Text bold color="cyan">
                         Tool Confirmation Required
                     </Text>
                 </Box>

@@ -132,7 +132,8 @@ const CommandFormContent: React.FC<{
                 theme: store.theme,
                 autoEditEnabled: store.autoEditEnabled,
                 vsCodeOpenEnabled: store.vsCodeOpenEnabled,
-                dangerousBypassPermission: store.dangerousBypassPermission
+                dangerousBypassPermission: store.dangerousBypassPermission,
+                virtualScrollingEnabled: store.virtualScrollingEnabled
             };
             
             // Set form values

@@ -72,9 +72,13 @@ export class OrderInvariantApplicator {
         
         const validMatches = allMatches.filter(m => !conflictingMatches.has(m));
         
-        // Group failed blocks
+        // Separate blocks with empty search (append operations)
+        const appendBlocks = blocks.filter(b => !b.search);
+        const searchBlocks = blocks.filter(b => b.search);
+        
+        // Group failed blocks (only for non-append blocks)
         const matchedBlocks = new Set(validMatches.map(m => m.block));
-        result.failed = blocks.filter(b => !matchedBlocks.has(b));
+        result.failed = searchBlocks.filter(b => !matchedBlocks.has(b));
         result.stats.failedCount = result.failed.length;
         
         // Sort matches by position (reverse order for correct application)
@@ -87,6 +91,12 @@ export class OrderInvariantApplicator {
             const after = newContent.substring(match.end);
             newContent = before + match.block.replace + after;
             result.applied.push(match.block);
+        }
+        
+        // Apply append operations
+        for (const block of appendBlocks) {
+            newContent += block.replace;
+            result.applied.push(block);
         }
         
         result.content = newContent;
@@ -272,10 +282,11 @@ export class OrderInvariantApplicator {
         const errors: string[] = [];
         const warnings: string[] = [];
         
-        // Check for empty blocks
+        // Check for empty blocks (but allow empty search for appending)
         blocks.forEach((block, i) => {
-            if (!block.search) {
-                errors.push(`Block ${i + 1}: Search string is empty`);
+            // Empty search is allowed for appending
+            if (!block.search && !block.replace) {
+                errors.push(`Block ${i + 1}: Both search and replace are empty`);
             }
             if (block.search === block.replace) {
                 warnings.push(`Block ${i + 1}: Search and replace are identical`);
@@ -285,11 +296,12 @@ export class OrderInvariantApplicator {
         // Find all matches
         const matches = this.findAllMatches(content, blocks);
         
-        // Check for blocks with no matches
+        // Check for blocks with no matches (but allow empty search for appending)
         const matchedBlocks = new Set(matches.map(m => m.block));
         blocks.forEach((block, i) => {
-            if (!matchedBlocks.has(block)) {
-                errors.push(`Block ${i + 1}: No matches found for "${block.search.substring(0, 50)}..."`);
+            if (!matchedBlocks.has(block) && block.search) {
+                // Only error if search is non-empty and not found
+                errors.push(`Block ${i + 1}: No matches found for "${block.search.substring(0, 50)}${block.search.length > 50 ? '...' : ''}"`);
             }
         });
         

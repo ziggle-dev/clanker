@@ -1,5 +1,5 @@
 import { registerCommand } from './registry';
-import { actions } from '../store';
+import { actions, store } from '../store';
 import { StageType } from '../ui/stage/types';
 
 let hasRegistered = false;
@@ -127,6 +127,19 @@ export function registerBuiltinCommands() {
         }
     });
     
+    // Virtual scrolling toggle command
+    registerCommand({
+        name: 'toggle-virtual-scroll',
+        description: 'Toggle virtual scrolling for chat history',
+        category: 'Settings',
+        exec: () => {
+            const currentState = store.virtualScrollingEnabled;
+            actions.setVirtualScrolling(!currentState);
+            const status = !currentState ? 'enabled' : 'disabled';
+            console.log(`📜 Virtual scrolling is now ${status}`);
+        }
+    });
+    
     // Search command
     registerCommand({
         name: 'search',
@@ -211,6 +224,12 @@ export function registerBuiltinCommands() {
                 type: 'boolean',
                 description: 'Dangerously bypass permissions ⚠️',
                 default: false
+            },
+            {
+                name: 'virtualScrollingEnabled',
+                type: 'boolean',
+                description: 'Virtual scrolling',
+                default: true
             }
         ],
         exec: async (args) => {
@@ -231,6 +250,7 @@ export function registerBuiltinCommands() {
             if (args.autoEditEnabled !== undefined) actions.setAutoEdit(args.autoEditEnabled);
             if (args.vsCodeOpenEnabled !== undefined) actions.setVSCodeOpen(args.vsCodeOpenEnabled);
             if (args.dangerousBypassPermission !== undefined) actions.setDangerousBypassPermission(args.dangerousBypassPermission);
+            if (args.virtualScrollingEnabled !== undefined) actions.setVirtualScrolling(args.virtualScrollingEnabled);
             
             // Save to settings.json
             if (settings.apiKey) {

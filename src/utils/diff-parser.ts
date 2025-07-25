@@ -78,7 +78,6 @@ export class DiffParser {
                 
                 if (match) {
                     const oldStart = parseInt(match[1]);
-                    const newStart = parseInt(match[3]);
                     
                     const searchLines: string[] = [];
                     const replaceLines: string[] = [];

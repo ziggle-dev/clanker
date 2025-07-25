@@ -313,13 +313,23 @@ export function ChatHistory({
         );
     }
 
-    return (
-        <VirtualScroll 
-            maxHeight={maxHeight}
-            estimatedItemHeight={4}
-            getItemHeight={getItemHeight}
-        >
-            {chatEntries}
-        </VirtualScroll>
-    );
+    // Use virtual scrolling if enabled, otherwise render all messages
+    if (snap.virtualScrollingEnabled) {
+        return (
+            <VirtualScroll 
+                maxHeight={maxHeight}
+                estimatedItemHeight={4}
+                getItemHeight={getItemHeight}
+            >
+                {chatEntries}
+            </VirtualScroll>
+        );
+    } else {
+        // Render all messages without virtual scrolling
+        return (
+            <Box flexDirection="column" overflow="hidden" paddingX={0}>
+                {chatEntries}
+            </Box>
+        );
+    }
 }

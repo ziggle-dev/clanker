@@ -91,7 +91,7 @@ export class RipgrepSearch {
                   match: parsed.data.lines.text
                 });
               }
-            } catch (e) {
+            } catch {
               // Ignore parse errors
             }
           }

@@ -34,6 +34,7 @@ export const HelpScreen: React.FC = () => {
                 <Text>  /theme - Change theme</Text>
                 <Text>  /model - Switch AI model</Text>
                 <Text>  /settings - Open settings</Text>
+                <Text>  /toggle-virtual-scroll - Toggle virtual scrolling</Text>
                 <Text>  /help - Show this help</Text>
                 
                 <Box marginTop={1}>

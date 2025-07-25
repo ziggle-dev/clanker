@@ -1,3 +1,0 @@
-This is a sample test file.
-It contains some text for testing, like 'orange' and 'kiwi'.
-We can replace words here to demonstrate the tool.

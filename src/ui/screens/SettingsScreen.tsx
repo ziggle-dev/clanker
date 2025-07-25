@@ -66,6 +66,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({onComplete, onCan
                 autoEditEnabled: values.autoEditEnabled || false,
                 vsCodeOpenEnabled: values.vsCodeOpenEnabled || false,
                 dangerousBypassPermission: values.dangerousBypassPermission || false,
+                virtualScrollingEnabled: values.virtualScrollingEnabled !== undefined ? values.virtualScrollingEnabled : true,
                 confirmationSettings: values.confirmationSettings || {
                     alwaysEdit: false,
                     alwaysBash: false,
@@ -204,6 +205,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({onComplete, onCan
                         name="dangerousBypassPermission"
                         label="Dangerously bypass permissions⚠"
                         row={selectedProvider === 'custom' ? 6 : 5}
+                        column={0}
+                    />
+
+                    <FormToggle
+                        name="virtualScrollingEnabled"
+                        label="Virtual scrolling"
+                        row={selectedProvider === 'custom' ? 7 : 6}
                         column={0}
                     />
                 </Box>

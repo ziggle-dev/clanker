@@ -1,6 +1,5 @@
-import cfonts from "cfonts";
 import chalk from "chalk";
-import {GrokAgent, StreamingChunk} from "./clanker/agent";
+import {GrokAgent} from "./clanker/agent";
 
 // Simple clear console function
 export async function clearConsole(): Promise<void> {
@@ -92,7 +91,7 @@ async function getDynamicContent(agent?: GrokAgent): Promise<string> {
         }
         
         return response.trim();
-    } catch (error) {
+    } catch {
         return getFallbackContent(selectedCategory);
     }
 }
@@ -167,7 +166,7 @@ export async function displayClankerLogo(agent?: GrokAgent): Promise<void> {
 }
 
 // Display simulated AI chat with programmer joke (kept for backward compatibility)
-export async function displayAIChat(agent?: GrokAgent): Promise<void> {
+export async function displayAIChat(_agent?: GrokAgent): Promise<void> {
     // This function is now deprecated in favor of the new logo display
     // but kept for backward compatibility
     return;

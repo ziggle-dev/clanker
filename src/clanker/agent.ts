@@ -9,8 +9,7 @@ import {
     createToolRegistry,
     ToolLoader,
     createToolLoader,
-    generateGrokTools,
-    createToolExecutor
+    generateGrokTools
 } from '../registry';
 import { createToolExecutorWithRetry } from '../registry/retry-executor';
 import {EventEmitter} from 'events';
@@ -348,7 +347,7 @@ export class GrokAgent extends EventEmitter {
             
             // Get tool info to provide better error message
             const tool = this.registry.get(toolName);
-            const hasRequiredArgs = tool?.definition.arguments?.some(arg => arg.required) ?? false;
+            // const hasRequiredArgs = tool?.definition.arguments?.some(arg => arg.required) ?? false;
             
             // Build helpful error message
             let errorMessage = `Failed to parse JSON arguments: ${error instanceof Error ? error.message : String(error)}`;

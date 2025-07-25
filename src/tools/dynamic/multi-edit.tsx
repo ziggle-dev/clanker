@@ -1,5 +1,5 @@
 /**
- * Replace in file tool - applies multiple search-and-replace operations
+ * Multi edit tool - flexible file editing with multiple operations (add, append, replace, remove)
  */
 
 import React from 'react';
@@ -18,19 +18,19 @@ import {EnhancedDiffView} from '../../ui/components/enhanced-diff-view';
 let confirmationService: ConfirmationService;
 
 /**
- * Replace in file tool - applies multiple search-and-replace operations
+ * Multi edit tool - flexible file editing with multiple operations
  */
-const replaceInFileTool = createTool()
-    .id('replace_in_file')
-    .name('Replace in File')
-    .description('Apply multiple search-and-replace operations to a file using order-invariant algorithm')
+const multiEditTool = createTool()
+    .id('multi_edit')
+    .name('Multi Edit')
+    .description('Flexible file editing tool that can add, append, replace, or remove content. Use empty search string to append content.')
     .category(ToolCategory.FileSystem)
     .capabilities(ToolCapability.FileRead, ToolCapability.FileWrite, ToolCapability.UserConfirmation)
-    .tags('file', 'edit', 'replace', 'modify', 'diff')
+    .tags('file', 'edit', 'replace', 'modify', 'diff', 'append', 'add', 'remove', 'update')
 
     // Arguments
     .stringArg('path', 'Path to the file to edit', {required: true})
-    .arrayArg('replacements', 'Array of search-and-replace operations. Each item should have: search (string), replace (string), and optional mode (exact|fuzzy)', {
+    .arrayArg('replacements', 'Array of edit operations. Each item should have: search (string - can be empty to append), replace (string - can be empty to remove), and optional mode (exact|fuzzy)', {
         required: false
     })
     .stringArg('diff_format', 'Alternative: provide replacements as a diff string in various formats', {
@@ -40,7 +40,7 @@ const replaceInFileTool = createTool()
     // Examples
     .examples([
         {
-            description: "Multiple replacements",
+            description: "Replace multiple strings",
             arguments: {
                 path: "src/config.ts",
                 replacements: [
@@ -48,7 +48,38 @@ const replaceInFileTool = createTool()
                     {search: "8080", replace: "443"}
                 ]
             },
-            result: "Replaces all occurrences in order-invariant way"
+            result: "Replaces all occurrences"
+        },
+        {
+            description: "Append content to file",
+            arguments: {
+                path: "script.sh",
+                replacements: [
+                    {search: "", replace: "\n# New commands\necho 'Hello World'\n"}
+                ]
+            },
+            result: "Appends new content to end of file"
+        },
+        {
+            description: "Remove lines containing text",
+            arguments: {
+                path: "config.yaml",
+                replacements: [
+                    {search: "debug: true\n", replace: ""},
+                    {search: "verbose: true\n", replace: ""}
+                ]
+            },
+            result: "Removes matching lines"
+        },
+        {
+            description: "Add content after specific line",
+            arguments: {
+                path: "main.py",
+                replacements: [
+                    {search: "import os", replace: "import os\nimport sys"}
+                ]
+            },
+            result: "Adds new import after existing one"
         },
         {
             description: "Using diff format",
@@ -56,14 +87,14 @@ const replaceInFileTool = createTool()
                 path: "README.md",
                 diff_format: "--- old text\n+++ new text\n\n--- another old\n+++ another new"
             },
-            result: "Applies diff-formatted replacements"
+            result: "Applies diff-formatted changes"
         }
     ])
 
     // Initialize
     .onInitialize(async (context) => {
         confirmationService = ConfirmationService.getInstance();
-        context.logger?.debug("Replace in File tool initialized");
+        context.logger?.debug("Multi Edit tool initialized");
     })
 
     // Execute
@@ -296,7 +327,7 @@ const replaceInFileTool = createTool()
 
     .build();
 
-export default replaceInFileTool;
+export default multiEditTool;
 
 // Export type
-export type ReplaceInFileArgs = ExtractToolArgs<typeof replaceInFileTool>;
+export type MultiEditArgs = ExtractToolArgs<typeof multiEditTool>;

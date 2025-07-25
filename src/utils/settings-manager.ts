@@ -49,6 +49,7 @@ export const SettingsSchema = z.object({
     autoEditEnabled: z.boolean().default(false),
     vsCodeOpenEnabled: z.boolean().default(false),
     dangerousBypassPermission: z.boolean().default(false),
+    virtualScrollingEnabled: z.boolean().default(true),
     confirmationSettings: z.object({
         alwaysEdit: z.boolean().default(false),
         alwaysBash: z.boolean().default(false),

@@ -38,7 +38,7 @@ npm start           # Run compiled version from dist/
 3. **Tools** (`src/tools/`): Modular tool implementations
    - `bash.ts`: Execute shell commands
    - `text-editor.ts`: File reading operations (view_file)
-   - `file-operations.tsx`: Modern file operations (write_to_file, replace_in_file) with order-invariant diff support
+   - `file-operations.tsx`: Modern file operations (write_to_file, multi_edit) with order-invariant diff support
    - `read-file.tsx`: Full file reading for edit preparation
    - `search.ts`: Ripgrep-based file search
    - `todo-tool.ts`: Task management
@@ -92,13 +92,13 @@ The project uses a hash-based file tracking system to ensure safe file operation
 2. **Hash Verification**: File content is hashed (SHA-256) to detect external changes
 3. **New Tools** (Recommended):
    - `write_to_file`: Write complete content to files (replaces `create_file`)
-   - `replace_in_file`: Apply multiple search-and-replace operations with order-invariant algorithm
+   - `multi_edit`: Flexible file editing (add, append, replace, remove) with order-invariant algorithm. Use empty search string to append.
    - Supports multiple diff formats (unified, markers, etc.)
    - 10x improvement in edit success rate
 
 4. **Deprecated Tools**:
    - `create_file`: Use `write_to_file` instead
-   - `str_replace_editor`: Use `replace_in_file` instead
+   - `str_replace_editor`: Use `multi_edit` instead
 
 ## Important Notes
 

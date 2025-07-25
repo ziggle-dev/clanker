@@ -8,10 +8,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import {ConfirmationService} from "./utils/confirmation-service";
-import cfonts from "cfonts";
-import {argsParser} from "./utils/args-parser";
 import {setDebugMode, debug} from "./utils/debug-logger";
-import {z} from "zod";
 // Display functions no longer needed - using React components instead
 
 // Load environment variables
