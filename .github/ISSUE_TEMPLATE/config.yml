@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 💬 Discussions
+    url: https://github.com/ziggle-dev/clanker/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: 📚 Documentation
+    url: https://github.com/ziggle-dev/clanker/tree/main/docs
+    about: Check our documentation for guides and API reference
+  - name: 🚀 Show and Tell
+    url: https://github.com/ziggle-dev/clanker/discussions/categories/show-and-tell
+    about: Share your custom tools and workflows
