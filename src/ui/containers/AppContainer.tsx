@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { GrokAgent } from '../../clanker/agent';
 import { ClankerLogo } from '../components/ClankerLogo';
-import { ChatContainer } from './ChatContainer';
+import { StageRouter } from '../stage/StageRouter';
+import { StageType } from '../stage/types';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { SettingsManager, Settings, ProviderModels } from '../../utils/settings-manager';
 import { actions } from '../../store';
@@ -103,7 +104,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent 
     }
     
     if (agent) {
-        return <ChatContainer agent={agent} />;
+        return <StageRouter agent={agent} />;
     }
     
     // This shouldn't happen, but just in case

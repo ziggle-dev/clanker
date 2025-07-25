@@ -11,13 +11,13 @@ import {StatusBar} from "../components/chat/StatusBar";
 import {LoadingAndStatus} from "../components/chat/LoadingAndStatus";
 import {ModelSelection} from "../components/model-selection";
 import ConfirmationDialog from "../components/confirmation-dialog";
-import {CommandForm} from "../components/CommandFormWrapper";
 import {ConfirmationService} from "../../utils/confirmation-service";
 import {useInputHandler} from "../../hooks/useInputHandler";
 import {useConfirmationHandler} from "../../hooks/useConfirmationHandler";
 import {useProcessingTimer} from "../../hooks/useProcessingTimer";
 import {useRegistries} from "../../hooks/useRegistries";
 import {store, actions} from "../../store";
+import {StageType} from "../stage/types";
 import {registerBuiltinCommands} from "../../commands/builtin";
 
 interface ChatContainerProps {
@@ -139,29 +139,14 @@ export function ChatContainer({agent}: ChatContainerProps) {
         if (!key.ctrl && !key.meta && inputChar) {
             // Check for / command at start of input
             if (inputChar === '/' && snap.inputValue === '') {
-                actions.setShowCommandForm(true);
+                actions.pushStage({ id: 'command-palette', type: StageType.COMMAND_PALETTE });
                 return;
             }
             actions.setInputValue(snap.inputValue + inputChar);
         }
     });
 
-    const handleCommandExecute = useCallback(async (commandName: string, args: Record<string, any>) => {
-        // Close the command form
-        actions.setShowCommandForm(false);
-        
-        // Get the command and execute it
-        const { getCommandRegistry } = await import('../../commands/registry');
-        const registry = getCommandRegistry();
-        const command = registry.get(commandName);
-        if (command) {
-            try {
-                await command.exec(args);
-            } catch (error) {
-                console.error(`Error executing command ${commandName}:`, error);
-            }
-        }
-    }, []);
+    // Command execution is now handled in CommandPaletteScreen
 
     return (
         <ChatLayout>
@@ -177,12 +162,6 @@ export function ChatContainer({agent}: ChatContainerProps) {
                     {...snap.confirmationOptions}
                     onConfirm={handleConfirmation}
                     onReject={handleRejection}
-                />
-            )}
-            {snap.showCommandForm && (
-                <CommandForm
-                    onCancel={() => actions.setShowCommandForm(false)}
-                    onExecute={handleCommandExecute}
                 />
             )}
         </ChatLayout>

@@ -6,6 +6,7 @@ import { ToolExecution } from '../registry/execution';
 import { ConfirmationOptions } from '../utils/confirmation-service';
 import { GrokToolCall } from '../clanker/client';
 import { debug } from '../utils/debug-logger';
+import { Stage, StageType } from '../ui/stage/types';
 
 // File tracker types
 interface FileInfo {
@@ -51,6 +52,9 @@ export interface AppState {
     selectedModelIndex: number;
     availableModels: string[];
     showCommandForm: boolean;
+    
+    // Stage management
+    stageStack: Stage[];
     
     // Settings slice
     autoEditEnabled: boolean;
@@ -111,6 +115,9 @@ export const store = proxy<AppState>({
     selectedModelIndex: 0,
     availableModels: ['grok-4-latest', 'grok-3-latest', 'grok-4', 'grok-3', 'grok-beta'],
     showCommandForm: false,
+    
+    // Stage management
+    stageStack: [{ id: 'main', type: StageType.CHAT }],
     
     // Settings slice
     autoEditEnabled: false,
@@ -496,6 +503,35 @@ export const actions = {
     
     clearAllFiles() {
         store.trackedFiles.clear();
+    },
+    
+    // Stage management actions
+    getCurrentStage(): Stage {
+        return store.stageStack[store.stageStack.length - 1];
+    },
+    
+    pushStage(stage: Stage) {
+        store.stageStack.push(stage);
+    },
+    
+    popStage() {
+        if (store.stageStack.length > 1) {
+            store.stageStack.pop();
+        }
+    },
+    
+    replaceStage(stage: Stage) {
+        if (store.stageStack.length > 0) {
+            store.stageStack[store.stageStack.length - 1] = stage;
+        }
+    },
+    
+    clearStages() {
+        store.stageStack = [{ id: 'main', type: StageType.CHAT }];
+    },
+    
+    getStageStack(): Stage[] {
+        return store.stageStack;
     },
 };
 

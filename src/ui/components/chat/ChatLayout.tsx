@@ -35,7 +35,7 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ children }) => {
   }, [snap.isStreaming]);
   
   return (
-    <Box flexDirection="column" paddingX={2} marginBottom={0}>
+    <Box flexDirection="column" paddingX={2} paddingBottom={1}>
       <Box justifyContent="center" marginBottom={1}>
         <Gradient name={snap.isStreaming ? gradients[gradientIndex] : 'passion'}>
           <BigText text="CLANK" font="3d" />

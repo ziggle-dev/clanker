@@ -50,12 +50,14 @@ export const FormSelect: React.FC<FormSelectProps> = ({
         };
     }, [name, row, column, required, validation, registerField, unregisterField]);
     
-    // Set initial value separately to avoid dependency on values
+    // Set initial value only once when component mounts and options are available
+    const hasInitialized = React.useRef(false);
     useEffect(() => {
-        if (values[name] === undefined && options.length > 0) {
+        if (!hasInitialized.current && values[name] === undefined && options.length > 0) {
+            hasInitialized.current = true;
             setValue(name, options[0].value);
         }
-    }, []); // Empty deps - only run on mount
+    }, [name, options, setValue]); // Don't include values to avoid loops
 
     const handleChange = (value: string) => {
         setValue(name, value);

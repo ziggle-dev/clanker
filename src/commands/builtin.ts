@@ -1,5 +1,6 @@
 import { registerCommand } from './registry';
 import { actions } from '../store';
+import { StageType } from '../ui/stage/types';
 
 // Register built-in commands
 export function registerBuiltinCommands() {
@@ -137,9 +138,7 @@ export function registerBuiltinCommands() {
         description: 'Open settings configuration',
         category: 'System',
         exec: () => {
-            // This would open the settings screen
-            console.log('Opening settings...');
-            // In a real implementation, this would trigger the settings screen
+            actions.pushStage({ id: 'settings', type: StageType.SETTINGS });
         }
     });
     
@@ -149,7 +148,7 @@ export function registerBuiltinCommands() {
         description: 'Show available commands',
         category: 'System',
         exec: () => {
-            actions.setShowHelp(true);
+            actions.pushStage({ id: 'help', type: StageType.HELP });
         }
     });
 }
