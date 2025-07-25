@@ -246,6 +246,27 @@ export function createRetryToolExecutor(registry: ToolRegistry) {
 }
 
 /**
+ * Try to fix malformed JSON
+ */
+function tryFixJson(jsonString: string): string | null {
+    // Remove trailing non-JSON characters after the last }
+    let cleaned = jsonString.replace(/\}[^}]*$/, '}');
+    
+    // Try to extract JSON object from string
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        return jsonMatch[0];
+    }
+    
+    // If it's just whitespace, return empty object
+    if (!cleaned.trim()) {
+        return '{}';
+    }
+    
+    return null;
+}
+
+/**
  * Wrapper for the standard createToolExecutor that adds retry logic
  */
 export function createToolExecutorWithRetry(registry: ToolRegistry) {
@@ -257,8 +278,24 @@ export function createToolExecutorWithRetry(registry: ToolRegistry) {
         if (typeof args === 'string') {
             try {
                 parsedArgs = JSON.parse(args);
-            } catch {
-                parsedArgs = {input: args};
+            } catch (error) {
+                // Try to fix common JSON errors
+                const fixed = tryFixJson(args as string);
+                if (fixed) {
+                    try {
+                        parsedArgs = JSON.parse(fixed);
+                    } catch {
+                        // If still fails, check if tool accepts no arguments
+                        const tool = registry.get(toolName);
+                        if (tool && (!tool.definition.arguments || tool.definition.arguments.length === 0)) {
+                            parsedArgs = {};
+                        } else {
+                            parsedArgs = {input: args};
+                        }
+                    }
+                } else {
+                    parsedArgs = {input: args};
+                }
             }
         }
 

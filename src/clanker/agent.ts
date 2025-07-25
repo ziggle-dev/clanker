@@ -345,9 +345,32 @@ export class GrokAgent extends EventEmitter {
             debug.error(`[Agent] Failed to parse arguments for ${toolName}:`);
             debug.error(`[Agent] Raw arguments: ${JSON.stringify(toolCall.function.arguments)}`);
             debug.error(`[Agent] Error: ${error}`);
+            
+            // Get tool info to provide better error message
+            const tool = this.registry.get(toolName);
+            const hasRequiredArgs = tool?.definition.arguments?.some(arg => arg.required) ?? false;
+            
+            // Build helpful error message
+            let errorMessage = `Failed to parse JSON arguments: ${error instanceof Error ? error.message : String(error)}`;
+            errorMessage += `\n\nThe raw arguments were: ${toolCall.function.arguments}`;
+            
+            if (tool) {
+                errorMessage += `\n\nTool "${toolName}" expects:`;
+                if (!tool.definition.arguments || tool.definition.arguments.length === 0) {
+                    errorMessage += '\n- No arguments required (use empty object: {})';
+                } else {
+                    tool.definition.arguments.forEach(arg => {
+                        errorMessage += `\n- ${arg.name}: ${arg.type}${arg.required ? ' (required)' : ' (optional)'}`;
+                        if (arg.description) {
+                            errorMessage += ` - ${arg.description}`;
+                        }
+                    });
+                }
+            }
+            
             return {
                 success: false,
-                error: `Failed to parse tool arguments: ${error instanceof Error ? error.message : String(error)}`
+                error: errorMessage
             };
         }
 

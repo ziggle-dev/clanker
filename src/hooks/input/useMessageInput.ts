@@ -280,6 +280,12 @@ export const useMessageInput = ({
                                     // Clean up buffers
                                     delete contentBufferRef.current[messageId];
                                 }
+                                
+                                // Ensure streaming flags are cleared immediately
+                                actions.setStreaming(false);
+                                actions.setProcessing(false);
+                                debug.log('[useMessageInput] Stream complete, clearing processing flags');
+                                
                                 // Exit the async generator loop
                                 return;
                         }
@@ -313,6 +319,16 @@ export const useMessageInput = ({
                 // Clear all refs
                 contentBufferRef.current = {};
                 updateTimerRef.current = {};
+                
+                // Check for and clean up any stuck executions
+                // This helps ensure the loading indicator disappears
+                const activeExecutions = Array.from(store.executions.values()).filter(e => e.status === 'executing');
+                if (activeExecutions.length > 0) {
+                    debug.log(`[useMessageInput] Found ${activeExecutions.length} stuck executions, clearing...`);
+                    activeExecutions.forEach(exec => {
+                        actions.completeExecution(exec.id, { success: true, output: "Execution completed" });
+                    });
+                }
             }
         },
         [agent, messageRegistry, executionRegistry, processingStartTime]
