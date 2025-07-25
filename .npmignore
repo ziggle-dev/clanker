@@ -51,6 +51,7 @@ docs/
 
 # Git files
 .git/
+.git.old/
 .gitignore
 
 # CI/CD files
@@ -69,6 +70,9 @@ CLAUDE.md
 outline.md
 research_notes.md
 tsx
+eslint.config.js
+CONTRIBUTING.md
+.DS_Store
 
 # Include only what's needed for the package
 # The dist/ folder should be included (not ignored)

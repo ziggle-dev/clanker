@@ -1,7 +1,7 @@
 {
   "name": "@ziggle/clanker",
   "version": "0.1.0",
-  "description": "A CLI tool for AI-powered text editing",
+  "description": "AI agents that actually do things - real actions, real changes, real time",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
