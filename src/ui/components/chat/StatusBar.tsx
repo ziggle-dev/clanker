@@ -16,7 +16,7 @@ export const StatusBar: React.FC = () => {
     <Box width="100%">
       {showExitConfirmation ? (
         <Text color="yellow" bold>
-          Press Ctrl+C again to exit
+          Press Ctrl-C again to exit
         </Text>
       ) : (
         <>

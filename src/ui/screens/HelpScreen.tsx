@@ -4,7 +4,7 @@ import { actions } from '../../store';
 
 export const HelpScreen: React.FC = () => {
     useInput((input, key) => {
-        if (key.escape || key.return) {
+        if (key.return) {
             actions.popStage();
         }
     });
@@ -37,7 +37,7 @@ export const HelpScreen: React.FC = () => {
                 <Text>  /help - Show this help</Text>
                 
                 <Box marginTop={1}>
-                    <Text dimColor>Press Enter or ESC to close</Text>
+                    <Text dimColor>Press Enter to close</Text>
                 </Box>
             </Box>
         </Box>

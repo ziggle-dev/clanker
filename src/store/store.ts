@@ -47,6 +47,7 @@ export interface AppState {
     showHelp: boolean;
     showModelSelector: boolean;
     exitConfirmation: boolean;
+    exitConfirmationTime: number;
     showCommandSuggestions: boolean;
     selectedCommandIndex: number;
     commandSuggestions: string[];
@@ -113,6 +114,7 @@ export const store = proxy<AppState>({
     showHelp: false,
     showModelSelector: false,
     exitConfirmation: false,
+    exitConfirmationTime: 0,
     showCommandSuggestions: false,
     selectedCommandIndex: 0,
     commandSuggestions: [],
@@ -396,6 +398,9 @@ export const actions = {
     
     setExitConfirmation(show: boolean) {
         store.exitConfirmation = show;
+        if (show) {
+            store.exitConfirmationTime = Date.now();
+        }
     },
     
     // Settings actions

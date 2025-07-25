@@ -64,12 +64,13 @@ export function ChatContainer({agent}: ChatContainerProps) {
     // Handle Ctrl+C
     const handleCtrlC = useCallback(() => {
         const now = Date.now();
-        const exitConfirmationTime = snap.exitConfirmation ? Date.now() - 3000 : 0;
 
-        if (snap.exitConfirmation && now - exitConfirmationTime < 3000) {
+        if (snap.exitConfirmation && snap.exitConfirmationTime && (now - snap.exitConfirmationTime) < 3000) {
+            // Second Ctrl+C within 3 seconds - exit
             exit();
             setTimeout(() => process.exit(0), 100);
         } else {
+            // First Ctrl+C or after timeout
             // Clear input when Ctrl+C is pressed
             if (snap.inputValue.trim()) {
                 actions.setInputValue("");
@@ -77,7 +78,7 @@ export function ChatContainer({agent}: ChatContainerProps) {
             actions.setExitConfirmation(true);
             setTimeout(() => actions.setExitConfirmation(false), 3000);
         }
-    }, [snap.exitConfirmation, snap.inputValue, exit]);
+    }, [snap.exitConfirmation, snap.exitConfirmationTime, snap.inputValue, exit]);
 
     // Toggle auto-edit
     const toggleAutoEdit = useCallback(() => {

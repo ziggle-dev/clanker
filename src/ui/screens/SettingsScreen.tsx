@@ -53,12 +53,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onComplete, onCa
         }
     }, []);
 
-    // Handle escape key for cancel
-    useInput((input, key) => {
-        if (key.escape && onCancel) {
-            onCancel();
-        }
-    });
+    // Escape key is handled by the form system, not here
 
     const handleSubmit = async (values: Record<string, any>) => {
         try {

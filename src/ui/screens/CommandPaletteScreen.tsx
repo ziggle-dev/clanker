@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import { 
     Form, 
     FormSelect, 
@@ -24,12 +24,7 @@ export const CommandPaletteScreen: React.FC = () => {
         []
     );
     
-    // Handle escape key at screen level
-    useInput((input, key) => {
-        if (key.escape) {
-            actions.popStage();
-        }
-    });
+    // Escape key is handled by the form system, not here
     
     const handleSubmit = async (values: Record<string, any>) => {
         const selectedCommand = values.command;

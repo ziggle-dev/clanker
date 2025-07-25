@@ -10,10 +10,7 @@ export const Modal: React.FC<ModalProps> = ({ title, message, options, onSubmit 
     const [selectedIndex, setSelectedIndex] = useState(0);
     
     useInput((input, key) => {
-        if (key.escape) {
-            onSubmit({ selected: '', cancelled: true });
-            return;
-        }
+        // Escape key does not close the modal - use a cancel button instead
         
         if (key.upArrow || input === 'k') {
             setSelectedIndex(prev => prev > 0 ? prev - 1 : options.length - 1);
@@ -71,7 +68,7 @@ export const Modal: React.FC<ModalProps> = ({ title, message, options, onSubmit 
                 </Box>
                 
                 <Box marginTop={1}>
-                    <Text dimColor>↑↓ Navigate • Enter/Space Select • ESC Cancel</Text>
+                    <Text dimColor>↑↓ Navigate • Enter/Space Select</Text>
                 </Box>
             </Box>
         </Box>
