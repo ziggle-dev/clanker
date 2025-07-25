@@ -7,13 +7,13 @@ This guide will help you install, configure, and start using Clanker for AI-powe
 ### Global Installation (Recommended)
 
 ```bash
-npm install -g @ziggle/clanker
+npm install -g @ziggler/clanker
 ```
 
 ### Using npx (No Installation)
 
 ```bash
-npx @ziggle/clanker
+npx @ziggler/clanker
 ```
 
 ### From Source

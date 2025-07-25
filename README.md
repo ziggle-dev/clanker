@@ -2,10 +2,10 @@
 
 <div align="center">
   <p>
-    <img alt="npm version" src="https://img.shields.io/npm/v/@ziggle/clanker?style=flat-square&color=00D9FF">
+    <img alt="npm version" src="https://img.shields.io/npm/v/@ziggler/clanker?style=flat-square&color=00D9FF">
     <img alt="license" src="https://img.shields.io/badge/license-MIT-blue?style=flat-square">
-    <img alt="node version" src="https://img.shields.io/node/v/@ziggle/clanker?style=flat-square&color=43B02A">
-    <img alt="downloads" src="https://img.shields.io/npm/dm/@ziggle/clanker?style=flat-square&color=FF6B6B">
+    <img alt="node version" src="https://img.shields.io/node/v/@ziggler/clanker?style=flat-square&color=43B02A">
+    <img alt="downloads" src="https://img.shields.io/npm/dm/@ziggler/clanker?style=flat-square&color=FF6B6B">
   </p>
   <h3>AI agents that actually <em>do</em> things</h3>
   <p>Not just suggestions—real actions, real changes, real time.</p>
@@ -22,7 +22,7 @@
 ## Quick Start
 
 ```bash
-npm install -g @ziggle/clanker
+npm install -g @ziggler/clanker
 clanker
 ```
 
@@ -164,7 +164,7 @@ We'd love your help making Clanker better!
 
 ## License
 
-MIT © [Ziggle](https://github.com/ziggle-dev)
+MIT © [Ziggler](https://github.com/ziggle-dev)
 
 ---
 

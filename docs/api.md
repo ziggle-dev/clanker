@@ -113,7 +113,7 @@ interface Tool {
 ### Tool Builder API
 
 ```typescript
-import { createTool } from '@ziggle/clanker';
+import { createTool } from '@ziggler/clanker';
 
 const tool = createTool()
   .id('my_tool')
@@ -347,7 +347,7 @@ const actions = {
 ```typescript
 // Access store state
 import { useSnapshot } from 'valtio';
-import { store } from '@ziggle/clanker';
+import { store } from '@ziggler/clanker';
 
 function MyComponent() {
   const snap = useSnapshot(store);
@@ -355,7 +355,7 @@ function MyComponent() {
 }
 
 // Use actions
-import { actions } from '@ziggle/clanker';
+import { actions } from '@ziggler/clanker';
 
 function MyButton() {
   return (
@@ -398,7 +398,7 @@ const customRenderer: ResultRenderer = ({ result, isExecuting }) => {
 ### Form Components
 
 ```typescript
-import { Form, FormInput, FormSelect, FormToggle } from '@ziggle/clanker/ui';
+import { Form, FormInput, FormSelect, FormToggle } from '@ziggler/clanker/ui';
 
 <Form onSubmit={handleSubmit}>
   <FormInput
@@ -479,7 +479,7 @@ agent.on('error', (error) => {
 ### Unit Testing
 
 ```typescript
-import { createTestRegistry } from '@ziggle/clanker/testing';
+import { createTestRegistry } from '@ziggler/clanker/testing';
 
 describe('MyTool', () => {
   it('should process input correctly', async () => {
@@ -501,7 +501,7 @@ describe('MyTool', () => {
 ### Integration Testing
 
 ```typescript
-import { createTestAgent } from '@ziggle/clanker/testing';
+import { createTestAgent } from '@ziggler/clanker/testing';
 
 describe('Tool Integration', () => {
   it('should work with agent', async () => {
@@ -523,7 +523,7 @@ describe('Tool Integration', () => {
 ### Custom Providers
 
 ```typescript
-import { AIProvider } from '@ziggle/clanker';
+import { AIProvider } from '@ziggler/clanker';
 
 class CustomProvider implements AIProvider {
   async complete(

@@ -208,7 +208,7 @@ Create a new file in `.clanker/tools/` directory:
 
 ```typescript
 // ~/.clanker/tools/my-custom-tool.ts
-import { createTool } from '@ziggle/clanker';
+import { createTool } from '@ziggler/clanker';
 import { z } from 'zod';
 
 export default createTool({

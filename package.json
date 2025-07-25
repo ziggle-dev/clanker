@@ -1,5 +1,5 @@
 {
-  "name": "@ziggle/clanker",
+  "name": "@ziggler/clanker",
   "version": "0.1.0",
   "description": "AI agents that actually do things - real actions, real changes, real time",
   "type": "module",
@@ -29,7 +29,7 @@
     "geminicli",
     "grokcli"
   ],
-  "author": "Ziggle",
+  "author": "Ziggler",
   "license": "MIT",
   "repository": {
     "type": "git",
