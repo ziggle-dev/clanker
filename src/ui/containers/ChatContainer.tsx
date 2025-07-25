@@ -11,12 +11,14 @@ import {StatusBar} from "../components/chat/StatusBar";
 import {LoadingAndStatus} from "../components/chat/LoadingAndStatus";
 import {ModelSelection} from "../components/model-selection";
 import ConfirmationDialog from "../components/confirmation-dialog";
+import {CommandForm} from "../components/CommandFormWrapper";
 import {ConfirmationService} from "../../utils/confirmation-service";
 import {useInputHandler} from "../../hooks/useInputHandler";
 import {useConfirmationHandler} from "../../hooks/useConfirmationHandler";
 import {useProcessingTimer} from "../../hooks/useProcessingTimer";
 import {useRegistries} from "../../hooks/useRegistries";
 import {store, actions} from "../../store";
+import {registerBuiltinCommands} from "../../commands/builtin";
 
 interface ChatContainerProps {
     agent: GrokAgent;
@@ -81,9 +83,10 @@ export function ChatContainer({agent}: ChatContainerProps) {
         confirmationService.setSessionFlag("allOperations", newAutoEditState);
     }, [snap.autoEditEnabled, confirmationService]);
 
-    // Initialize store settings on mount
+    // Initialize store settings and commands on mount
     useEffect(() => {
         actions.loadSettings();
+        registerBuiltinCommands();
     }, []);
 
     // Handle keyboard input directly here
@@ -134,9 +137,31 @@ export function ChatContainer({agent}: ChatContainerProps) {
 
         // Regular character input
         if (!key.ctrl && !key.meta && inputChar) {
+            // Check for / command at start of input
+            if (inputChar === '/' && snap.inputValue === '') {
+                actions.setShowCommandForm(true);
+                return;
+            }
             actions.setInputValue(snap.inputValue + inputChar);
         }
     });
+
+    const handleCommandExecute = useCallback(async (commandName: string, args: Record<string, any>) => {
+        // Close the command form
+        actions.setShowCommandForm(false);
+        
+        // Get the command and execute it
+        const { getCommandRegistry } = await import('../../commands/registry');
+        const registry = getCommandRegistry();
+        const command = registry.get(commandName);
+        if (command) {
+            try {
+                await command.exec(args);
+            } catch (error) {
+                console.error(`Error executing command ${commandName}:`, error);
+            }
+        }
+    }, []);
 
     return (
         <ChatLayout>
@@ -152,6 +177,12 @@ export function ChatContainer({agent}: ChatContainerProps) {
                     {...snap.confirmationOptions}
                     onConfirm={handleConfirmation}
                     onReject={handleRejection}
+                />
+            )}
+            {snap.showCommandForm && (
+                <CommandForm
+                    onCancel={() => actions.setShowCommandForm(false)}
+                    onExecute={handleCommandExecute}
                 />
             )}
         </ChatLayout>

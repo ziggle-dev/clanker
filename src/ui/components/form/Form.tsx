@@ -3,7 +3,7 @@ import { Box, Text, useInput } from 'ink';
 
 interface FormField {
     id: string;
-    type: 'input' | 'button' | 'checkbox' | 'select';
+    type: 'input' | 'button' | 'checkbox' | 'select' | 'toggle';
     row: number;
     column: number;
     required?: boolean;

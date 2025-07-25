@@ -50,6 +50,7 @@ export interface AppState {
     showModelSelection: boolean;
     selectedModelIndex: number;
     availableModels: string[];
+    showCommandForm: boolean;
     
     // Settings slice
     autoEditEnabled: boolean;
@@ -109,6 +110,7 @@ export const store = proxy<AppState>({
     showModelSelection: false,
     selectedModelIndex: 0,
     availableModels: ['grok-4-latest', 'grok-3-latest', 'grok-4', 'grok-3', 'grok-beta'],
+    showCommandForm: false,
     
     // Settings slice
     autoEditEnabled: false,
@@ -397,6 +399,16 @@ export const actions = {
     setModel(model: string) {
         store.model = model;
         actions.saveSettings();
+    },
+    
+    // Command form actions
+    setShowCommandForm(show: boolean) {
+        store.showCommandForm = show;
+    },
+    
+    // UI actions
+    setShowHelp(show: boolean) {
+        store.showHelp = show;
     },
     
     async loadSettings() {

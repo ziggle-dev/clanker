@@ -6,7 +6,10 @@ import React from 'react';
 import {Text, Box} from 'ink';
 import {createTool, ToolCategory, ToolCapability, ExtractToolArgs} from '../../registry';
 import {CompactOutput, ToolOutput} from '../../ui/components/tool-output';
-import {store} from '../../store/store';
+import {GrokClient} from '../../clanker/client';
+import {SettingsManager} from '../../utils/settings-manager';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const summarizeTool = createTool()
     .id('summarize')
@@ -18,11 +21,18 @@ const summarizeTool = createTool()
 
     // Arguments
     .stringArg('text', 'The text content to summarize', {
-        required: true,
+        required: false,
         validate: (value) => {
-            if (typeof value !== 'string') return 'Text must be a string';
-            if (value.trim().length < 10) return 'Text must be at least 10 characters long';
-            if (value.trim().length > 100000) return 'Text must be less than 100,000 characters';
+            if (value !== undefined && typeof value !== 'string') return 'Text must be a string';
+            if (value && value.trim().length < 10) return 'Text must be at least 10 characters long';
+            if (value && value.trim().length > 100000) return 'Text must be less than 100,000 characters';
+            return true;
+        }
+    })
+    .stringArg('file', 'Path to file to summarize (alternative to text)', {
+        required: false,
+        validate: (value) => {
+            if (value !== undefined && typeof value !== 'string') return 'File path must be a string';
             return true;
         }
     })
@@ -55,6 +65,14 @@ const summarizeTool = createTool()
             result: "**Top 3 Pain Points:**\n1. Performance issues (slow image loading) - 75% of users\n2. Limited payment options - 50% of users\n3. Navigation complexity - 50% of users\n\n**Top 3 Valued Features:**\n1. Quick checkout process\n2. Product recommendations\n3. Order tracking/wishlist functionality"
         },
         {
+            description: "Summarize a file with specific focus",
+            arguments: {
+                file: "docs/architecture.md",
+                instructions: "Focus on the key design decisions and system components"
+            },
+            result: "**Key Design Decisions:**\n1. Microservices architecture for scalability\n2. Event-driven communication via Kafka\n3. PostgreSQL for transactional data, Redis for caching\n\n**System Components:**\n- API Gateway (Kong)\n- Authentication Service (OAuth2)\n- Core Business Services (User, Product, Order)\n- Data Pipeline (Apache Spark)\n- Monitoring Stack (Prometheus/Grafana)"
+        },
+        {
             description: "Create an executive summary from a technical report",
             arguments: {
                 text: "Q4 2024 Infrastructure Performance Report\n\nOverview:\nOur cloud infrastructure served 2.4 billion requests this quarter, a 40% increase from Q3. Overall uptime was 99.97%, meeting our SLA requirements.\n\nKey Metrics:\n- Average response time: 120ms (down from 145ms in Q3)\n- Peak concurrent users: 1.2M (Oct 15 during flash sale)\n- Data transferred: 850TB\n- Cost per transaction: $0.0023 (reduced by 15%)\n\nIncidents:\n- Oct 5: 15-minute partial outage affecting EU region (faulty load balancer)\n- Nov 12: 5-minute database replication lag causing stale data\n- Dec 3: DDoS attack successfully mitigated, no user impact\n\nInfrastructure Changes:\n- Migrated 60% of services to Kubernetes\n- Implemented new caching layer (Redis Cluster)\n- Upgraded all database instances to latest version\n- Added 3 new edge locations in Asia\n\nBudget:\n- Total spend: $485,000 (under budget by 8%)\n- Largest cost: Compute (45%), Storage (30%), Network (25%)\n\nRecommendations:\n1. Complete Kubernetes migration by Q1 2025\n2. Implement multi-region database failover\n3. Investigate serverless options for variable workloads\n4. Upgrade monitoring stack to reduce incident detection time",
@@ -74,179 +92,120 @@ const summarizeTool = createTool()
 
     // Execute
     .execute(async (args, context) => {
-        const {text, instructions} = args as {
-            text: string;
+        const {text, file, instructions} = args as {
+            text?: string;
+            file?: string;
             instructions?: string;
         };
 
-        context.logger?.debug(`Summarizing text of length: ${text.length}`);
+        // Validate that either text or file is provided
+        if (!text && !file) {
+            return {
+                success: false,
+                error: 'Either text or file parameter must be provided'
+            };
+        }
+
+        if (text && file) {
+            return {
+                success: false,
+                error: 'Cannot provide both text and file parameters'
+            };
+        }
+
+        let contentToSummarize = text || '';
+
+        // Read file if file path is provided
+        if (file) {
+            try {
+                const resolvedPath = path.resolve(context.workingDirectory, file);
+                if (!fs.existsSync(resolvedPath)) {
+                    return {
+                        success: false,
+                        error: `File not found: ${file}`
+                    };
+                }
+                contentToSummarize = fs.readFileSync(resolvedPath, 'utf-8');
+                context.logger?.debug(`Read file: ${resolvedPath} (${contentToSummarize.length} characters)`);
+            } catch (error) {
+                return {
+                    success: false,
+                    error: `Failed to read file: ${error instanceof Error ? error.message : String(error)}`
+                };
+            }
+        }
+
+        context.logger?.debug(`Summarizing text of length: ${contentToSummarize.length}`);
         if (instructions) {
             context.logger?.debug(`Using custom instructions: ${instructions}`);
         }
 
         try {
-            // Get the agent from store to use for summarization
-            const agent = store.agent;
-            if (!agent) {
-                return {
-                    success: false,
-                    error: 'No active agent available for summarization'
-                };
+            // Get settings to create a client
+            const settingsManager = SettingsManager.getInstance();
+            const {settings, isValid} = settingsManager.loadSettings();
+            
+            if (!isValid || !settings.apiKey) {
+                // Fall back to basic text processing if no API key available
+                context.logger?.warn('No API key configured, using basic text processing');
+                return performBasicSummarization(contentToSummarize, instructions, context);
             }
+
+            // Create a client for chat completion
+            const baseURL = settings.provider === 'custom' && settings.customBaseURL 
+                ? settings.customBaseURL 
+                : undefined;
+            
+            const client = new GrokClient(
+                settings.apiKey,
+                settings.model,
+                baseURL
+            );
 
             // Prepare the summarization prompt
-            let prompt = `Please summarize the following text:\n\n${text}`;
+            let prompt = `Please summarize the following text in a clear and concise manner:\n\n${contentToSummarize}`;
             
             if (instructions) {
-                prompt = `Please summarize the following text according to these instructions: ${instructions}\n\nText to summarize:\n${text}`;
+                prompt = `Please summarize the following text according to these instructions: ${instructions}\n\nText to summarize:\n${contentToSummarize}`;
             }
 
-            // For now, we'll create a simple summary using basic text processing
-            // In a real implementation, this would use the agent's AI capabilities
-            context.logger?.info('Generating summary...');
+            context.logger?.info('Generating AI-powered summary...');
             
-            // Enhanced summarization logic with structured output
-            const lines = text.split('\n').filter(line => line.trim());
-            const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-            const paragraphs = text.split('\n\n').filter(p => p.trim());
-            
-            // Extract different types of content
-            const extractKeyPoints = () => {
-                return sentences
-                    .filter((s: string) => s.trim().length > 30)
-                    .slice(0, 5)
-                    .map((s: string) => s.trim());
-            };
-            
-            const extractActionItems = () => {
-                const actionPatterns = [
-                    /(?:will|should|must|need(?:s)? to|have to|going to)\s+\w+/gi,
-                    /\b(?:TODO|FIXME|ACTION|TASK):\s*.+/gi,
-                    /\b(?:next steps?|action items?):\s*.+/gi
-                ];
-                return sentences.filter((s: string) => 
-                    actionPatterns.some(pattern => pattern.test(s))
-                ).map((s: string) => s.trim());
-            };
-            
-            const extractSections = () => {
-                const sections: Record<string, string[]> = {};
-                let currentSection = 'Overview';
-                
-                lines.forEach(line => {
-                    // Check if line is a header
-                    if (line.match(/^#+\s+/) || line.match(/^[A-Z][^.!?]*:$/)) {
-                        currentSection = line.replace(/^#+\s+/, '').replace(/:$/, '').trim();
-                        sections[currentSection] = [];
-                    } else if (line.trim()) {
-                        if (!sections[currentSection]) sections[currentSection] = [];
-                        sections[currentSection].push(line.trim());
-                    }
-                });
-                
-                return sections;
-            };
-            
-            // Build structured summary based on instructions
-            let summaryData: any = {};
-            
-            if (instructions?.toLowerCase().includes('action')) {
-                const actions = extractActionItems();
-                summaryData = {
-                    type: 'action_items',
-                    title: 'Action Items Extracted',
-                    items: actions.slice(0, 10),
-                    count: actions.length
-                };
-            } else if (instructions?.toLowerCase().includes('section')) {
-                const sections = extractSections();
-                summaryData = {
-                    type: 'sections',
-                    title: 'Document Structure',
-                    sections: Object.entries(sections).slice(0, 5).map(([title, content]) => ({
-                        title,
-                        summary: content.slice(0, 2).join(' ')
-                    }))
-                };
-            } else if (instructions?.toLowerCase().includes('brief') || instructions?.toLowerCase().includes('short')) {
-                summaryData = {
-                    type: 'brief',
-                    title: 'Brief Summary',
-                    content: sentences.slice(0, 2).join(' ').trim()
-                };
-            } else {
-                // Default structured summary
-                const keyPoints = extractKeyPoints();
-                const hasActions = extractActionItems().length > 0;
-                
-                summaryData = {
-                    type: 'structured',
-                    title: 'Summary',
-                    overview: paragraphs[0]?.substring(0, 200) + (paragraphs[0]?.length > 200 ? '...' : ''),
-                    keyPoints: keyPoints.slice(0, 3),
-                    sections: Object.keys(extractSections()).slice(0, 3),
-                    hasActionItems: hasActions
-                };
-            }
-            
-            // Convert to markdown format
-            let summary = '';
-            
-            switch (summaryData.type) {
-                case 'action_items':
-                    summary = summaryData.items.map((item: string, i: number) => `${i + 1}. ${item}`).join('\n');
-                    break;
-                    
-                case 'sections':
-                    summary = summaryData.sections.map((s: any, i: number) => 
-                        `${i + 1}. **${s.title}**: ${s.summary}`
-                    ).join('\n');
-                    break;
-                    
-                case 'brief':
-                    summary = summaryData.content;
-                    break;
-                    
-                case 'structured':
-                    const parts = [];
-                    if (summaryData.overview) {
-                        parts.push(`**Overview**: ${summaryData.overview}`);
-                    }
-                    if (summaryData.keyPoints?.length > 0) {
-                        parts.push('\n**Key Points**:');
-                        summaryData.keyPoints.forEach((point: string, i: number) => {
-                            parts.push(`${i + 1}. ${point}`);
-                        });
-                    }
-                    if (summaryData.sections?.length > 0) {
-                        parts.push('\n**Sections Found**:');
-                        summaryData.sections.forEach((section: string, i: number) => {
-                            parts.push(`- ${section}`);
-                        });
-                    }
-                    summary = parts.join('\n');
-                    break;
-            }
+            // Make the chat completion request
+            const response = await client.chat([
+                {
+                    role: 'user',
+                    content: prompt
+                }
+            ]);
 
-            // Calculate compression ratio
-            const originalWords = text.split(/\s+/).length;
+            const summary = response.choices[0]?.message?.content || '';
+            
+            if (!summary) {
+                return {
+                    success: false,
+                    error: 'No summary generated from AI'
+                };
+            }
+            // Calculate stats
+            const originalWords = contentToSummarize.split(/\s+/).length;
             const summaryWords = summary.split(/\s+/).length;
             const compressionRatio = Math.round((1 - summaryWords / originalWords) * 100);
 
-            context.logger?.info(`Summary generated successfully (${compressionRatio}% compression)`);
+            context.logger?.info(`AI summary generated successfully (${compressionRatio}% compression)`);
 
             return {
                 success: true,
                 output: summary,
                 data: {
-                    originalLength: text.length,
+                    originalLength: contentToSummarize.length,
                     summaryLength: summary.length,
                     originalWords,
                     summaryWords,
                     compressionRatio,
                     instructions,
-                    summaryType: summaryData.type,
-                    summaryData
+                    summaryType: 'ai_generated',
+                    source: file ? `file: ${file}` : 'text input'
                 }
             };
         } catch (error) {
@@ -287,10 +246,13 @@ const summarizeTool = createTool()
             instructions?: string;
             summaryType?: string;
             summaryData?: any;
+            source?: string;
+            note?: string;
         };
 
         const summary = result.output || '';
         const summaryType = data?.summaryType || 'unknown';
+        const isAIGenerated = summaryType === 'ai_generated';
 
         // Format the summary output similar to the user's preferred style
         return (
@@ -305,10 +267,12 @@ const summarizeTool = createTool()
                     <Box flexDirection="column" paddingLeft={2}>
                         <Text bold>1. Summary Statistics:</Text>
                         <Box paddingLeft={3} flexDirection="column">
-                            <Text color="gray">   - Type: {summaryType}</Text>
+                            <Text color="gray">   - Type: {isAIGenerated ? 'AI Generated' : summaryType}</Text>
+                            {data?.source && <Text color="gray">   - Source: {data.source}</Text>}
                             <Text color="gray">   - Original: {data?.originalWords} words</Text>
                             <Text color="gray">   - Summary: {data?.summaryWords} words</Text>
                             <Text color="gray">   - Compression: {data?.compressionRatio}% reduction</Text>
+                            {data?.note && <Text color="yellow">   - Note: {data.note}</Text>}
                         </Box>
                     </Box>
                     
@@ -350,29 +314,39 @@ const summarizeTool = createTool()
                     <Box flexDirection="column" paddingLeft={2} marginTop={1}>
                         <Text bold>{data?.instructions ? '4' : '3'}. Features Used:</Text>
                         <Box paddingLeft={3} flexDirection="column">
-                            {summaryType === 'action_items' && (
+                            {isAIGenerated ? (
                                 <>
-                                    <Text color="gray">   - Action item extraction</Text>
-                                    <Text color="gray">   - Pattern matching for tasks</Text>
+                                    <Text color="gray">   - AI language model processing</Text>
+                                    <Text color="gray">   - Context-aware summarization</Text>
+                                    <Text color="gray">   - Instruction-guided generation</Text>
                                 </>
-                            )}
-                            {summaryType === 'sections' && (
+                            ) : (
                                 <>
-                                    <Text color="gray">   - Section detection</Text>
-                                    <Text color="gray">   - Hierarchical organization</Text>
-                                </>
-                            )}
-                            {summaryType === 'brief' && (
-                                <>
-                                    <Text color="gray">   - Concise extraction</Text>
-                                    <Text color="gray">   - First impression focus</Text>
-                                </>
-                            )}
-                            {summaryType === 'structured' && (
-                                <>
-                                    <Text color="gray">   - Multi-level analysis</Text>
-                                    <Text color="gray">   - Key point extraction</Text>
-                                    <Text color="gray">   - Section identification</Text>
+                                    {summaryType === 'action_items' && (
+                                        <>
+                                            <Text color="gray">   - Action item extraction</Text>
+                                            <Text color="gray">   - Pattern matching for tasks</Text>
+                                        </>
+                                    )}
+                                    {summaryType === 'sections' && (
+                                        <>
+                                            <Text color="gray">   - Section detection</Text>
+                                            <Text color="gray">   - Hierarchical organization</Text>
+                                        </>
+                                    )}
+                                    {summaryType === 'brief' && (
+                                        <>
+                                            <Text color="gray">   - Concise extraction</Text>
+                                            <Text color="gray">   - First impression focus</Text>
+                                        </>
+                                    )}
+                                    {summaryType === 'structured' && (
+                                        <>
+                                            <Text color="gray">   - Multi-level analysis</Text>
+                                            <Text color="gray">   - Key point extraction</Text>
+                                            <Text color="gray">   - Section identification</Text>
+                                        </>
+                                    )}
                                 </>
                             )}
                         </Box>
@@ -387,6 +361,154 @@ const summarizeTool = createTool()
     })
     
     .build();
+
+// Helper function for basic summarization when no API is available
+function performBasicSummarization(text: string, instructions: string | undefined, context: any) {
+    const lines = text.split('\n').filter(line => line.trim());
+    const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+    const paragraphs = text.split('\n\n').filter(p => p.trim());
+    
+    // Extract different types of content
+    const extractKeyPoints = () => {
+        return sentences
+            .filter((s: string) => s.trim().length > 30)
+            .slice(0, 5)
+            .map((s: string) => s.trim());
+    };
+    
+    const extractActionItems = () => {
+        const actionPatterns = [
+            /(?:will|should|must|need(?:s)? to|have to|going to)\s+\w+/gi,
+            /\b(?:TODO|FIXME|ACTION|TASK):\s*.+/gi,
+            /\b(?:next steps?|action items?):\s*.+/gi
+        ];
+        return sentences.filter((s: string) => 
+            actionPatterns.some(pattern => pattern.test(s))
+        ).map((s: string) => s.trim());
+    };
+    
+    const extractSections = () => {
+        const sections: Record<string, string[]> = {};
+        let currentSection = 'Overview';
+        
+        lines.forEach(line => {
+            // Check if line is a header
+            if (line.match(/^#+\s+/) || line.match(/^[A-Z][^.!?]*:$/)) {
+                currentSection = line.replace(/^#+\s+/, '').replace(/:$/, '').trim();
+                sections[currentSection] = [];
+            } else if (line.trim()) {
+                if (!sections[currentSection]) sections[currentSection] = [];
+                sections[currentSection].push(line.trim());
+            }
+        });
+        
+        return sections;
+    };
+    
+    // Build structured summary based on instructions
+    let summaryData: any = {};
+    
+    if (instructions?.toLowerCase().includes('action')) {
+        const actions = extractActionItems();
+        summaryData = {
+            type: 'action_items',
+            title: 'Action Items Extracted',
+            items: actions.slice(0, 10),
+            count: actions.length
+        };
+    } else if (instructions?.toLowerCase().includes('section')) {
+        const sections = extractSections();
+        summaryData = {
+            type: 'sections',
+            title: 'Document Structure',
+            sections: Object.entries(sections).slice(0, 5).map(([title, content]) => ({
+                title,
+                summary: content.slice(0, 2).join(' ')
+            }))
+        };
+    } else if (instructions?.toLowerCase().includes('brief') || instructions?.toLowerCase().includes('short')) {
+        summaryData = {
+            type: 'brief',
+            title: 'Brief Summary',
+            content: sentences.slice(0, 2).join(' ').trim()
+        };
+    } else {
+        // Default structured summary
+        const keyPoints = extractKeyPoints();
+        const hasActions = extractActionItems().length > 0;
+        
+        summaryData = {
+            type: 'structured',
+            title: 'Summary',
+            overview: paragraphs[0]?.substring(0, 200) + (paragraphs[0]?.length > 200 ? '...' : ''),
+            keyPoints: keyPoints.slice(0, 3),
+            sections: Object.keys(extractSections()).slice(0, 3),
+            hasActionItems: hasActions
+        };
+    }
+    
+    // Convert to markdown format
+    let summary = '';
+    
+    switch (summaryData.type) {
+        case 'action_items':
+            summary = summaryData.items.map((item: string, i: number) => `${i + 1}. ${item}`).join('\n');
+            break;
+            
+        case 'sections':
+            summary = summaryData.sections.map((s: any, i: number) => 
+                `${i + 1}. **${s.title}**: ${s.summary}`
+            ).join('\n');
+            break;
+            
+        case 'brief':
+            summary = summaryData.content;
+            break;
+            
+        case 'structured':
+            const parts = [];
+            if (summaryData.overview) {
+                parts.push(`**Overview**: ${summaryData.overview}`);
+            }
+            if (summaryData.keyPoints?.length > 0) {
+                parts.push('\n**Key Points**:');
+                summaryData.keyPoints.forEach((point: string, i: number) => {
+                    parts.push(`${i + 1}. ${point}`);
+                });
+            }
+            if (summaryData.sections?.length > 0) {
+                parts.push('\n**Sections Found**:');
+                summaryData.sections.forEach((section: string, i: number) => {
+                    parts.push(`- ${section}`);
+                });
+            }
+            summary = parts.join('\n');
+            break;
+    }
+
+    // Calculate compression ratio
+    const originalWords = text.split(/\s+/).length;
+    const summaryWords = summary.split(/\s+/).length;
+    const compressionRatio = Math.round((1 - summaryWords / originalWords) * 100);
+
+    context.logger?.info(`Basic summary generated (${compressionRatio}% compression)`);
+
+    return {
+        success: true,
+        output: summary,
+        data: {
+            originalLength: text.length,
+            summaryLength: summary.length,
+            originalWords,
+            summaryWords,
+            compressionRatio,
+            instructions,
+            summaryType: summaryData.type,
+            summaryData,
+            note: 'Basic text processing (no AI)'
+        }
+    };
+}
 
 export default summarizeTool;
 
