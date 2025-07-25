@@ -65,7 +65,10 @@ export class ToolInstaller {
       
       // Download the tool
       console.log(`📥 Downloading ${tool.org}/${tool.name}@${version}...`);
-      const toolContent = await this.registry.downloadTool(tool, version);
+      const downloadBuffer = await this.registry.downloadTool(tool, version);
+      
+      // Extract tool content (handle tar.gz archives)
+      const toolContent = await this.extractToolContent(downloadBuffer, tool);
       
       // Verify checksum if provided (skip if it's the example hash)
       if (versionInfo.sha256 && versionInfo.sha256 !== 'example-hash-will-be-computed') {
@@ -192,6 +195,88 @@ export class ToolInstaller {
     return toolFile;
   }
 
+  /**
+   * Extract tool content from download buffer
+   */
+  private async extractToolContent(buffer: Buffer, tool: ToolIdentifier): Promise<Buffer> {
+    // Check if it's a tar.gz file
+    if (buffer[0] === 0x1f && buffer[1] === 0x8b) {
+      // It's gzipped
+      debug.log(`[Installer] Extracting tar.gz for ${tool.org}/${tool.name}`);
+      
+      try {
+        // Use Node.js built-in zlib for decompression
+        const zlib = await import('zlib');
+        const gunzipped = await new Promise<Buffer>((resolve, reject) => {
+          zlib.gunzip(buffer, (err, result) => {
+            if (err) reject(err);
+            else resolve(result);
+          });
+        });
+        
+        // Simple tar extraction - look for the tool's index.js
+        const targetPath = `${tool.org}/${tool.name}/index.js`;
+        const files = this.parseTar(gunzipped);
+        
+        const toolFile = files.find(f => f.name.endsWith(targetPath));
+        if (toolFile) {
+          return toolFile.content;
+        }
+        
+        // Fallback: look for any index.js
+        const indexFile = files.find(f => f.name.endsWith('index.js'));
+        if (indexFile) {
+          return indexFile.content;
+        }
+        
+        throw new Error('No index.js found in archive');
+        
+      } catch (error) {
+        debug.error('[Installer] Failed to extract tar.gz:', error);
+        throw new Error(`Failed to extract tool: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    
+    // Not a tar.gz, assume it's the raw JavaScript file
+    return buffer;
+  }
+  
+  /**
+   * Simple tar parser (basic implementation)
+   */
+  private parseTar(buffer: Buffer): Array<{name: string, content: Buffer}> {
+    const files: Array<{name: string, content: Buffer}> = [];
+    let offset = 0;
+    
+    while (offset < buffer.length) {
+      // Read header (512 bytes)
+      const header = buffer.slice(offset, offset + 512);
+      offset += 512;
+      
+      // Check if we've reached the end (empty header)
+      if (header.every(b => b === 0)) break;
+      
+      // Extract filename (first 100 bytes)
+      const nameEnd = header.indexOf(0);
+      const name = header.slice(0, nameEnd > 0 ? nameEnd : 100).toString('utf8').trim();
+      
+      // Extract file size (octal, bytes 124-135)
+      const sizeStr = header.slice(124, 135).toString('utf8').trim();
+      const size = parseInt(sizeStr, 8) || 0;
+      
+      if (name && size > 0) {
+        // Read file content
+        const content = buffer.slice(offset, offset + size);
+        files.push({ name, content });
+      }
+      
+      // Move to next 512-byte boundary
+      offset += Math.ceil(size / 512) * 512;
+    }
+    
+    return files;
+  }
+  
   /**
    * Load manifest file
    */

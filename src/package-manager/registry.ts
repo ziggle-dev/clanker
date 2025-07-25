@@ -52,15 +52,24 @@ export class RegistryClient {
           debug.log(`[Registry] Cache miss for ${repo.name}`);
         }
         
-        // Fetch from repository
-        const url = `${registryUrl}/registry.json`;
-        const response = await fetch(url);
+        // Try to fetch from GitHub releases first
+        let registry: ToolRegistry | null = null;
         
-        if (!response.ok) {
-          throw new Error(`Failed to fetch from ${repo.name}: ${response.statusText}`);
+        if (repo.url.includes('github.com')) {
+          registry = await this.fetchFromGitHubReleases(repo);
         }
         
-        const registry = await response.json() as ToolRegistry;
+        // Fallback to registry.json if no releases
+        if (!registry) {
+          const url = `${registryUrl}/registry.json`;
+          const response = await fetch(url);
+          
+          if (!response.ok) {
+            throw new Error(`Failed to fetch from ${repo.name}: ${response.statusText}`);
+          }
+          
+          registry = await response.json() as ToolRegistry;
+        }
         
         // Cache the result
         await this.writeCache(cacheFile, registry);
@@ -99,6 +108,40 @@ export class RegistryClient {
    * Fetch metadata for a specific tool from repositories
    */
   async fetchToolMetadata(tool: ToolIdentifier): Promise<ToolPackageMetadata> {
+    debug.log(`[Registry] Fetching metadata for ${tool.org}/${tool.name}`);
+    
+    // First try to get from registry (which uses releases)
+    const registry = await this.fetchRegistry();
+    debug.log(`[Registry] Found ${registry.tools.length} tools in registry`);
+    
+    const toolInfo = registry.tools.find(t => 
+      t.org === tool.org && t.name === tool.name
+    );
+    
+    if (toolInfo) {
+      debug.log(`[Registry] Found tool in registry:`, toolInfo);
+      // Convert registry format to metadata format
+      const version = toolInfo.version || toolInfo.latest || '1.0.0';
+      return {
+        id: toolInfo.id || `${toolInfo.org}/${toolInfo.name}`,
+        name: `${toolInfo.org}-clanker-tool-${toolInfo.name}`,
+        description: toolInfo.description,
+        author: toolInfo.author || 'Unknown',
+        homepage: toolInfo.homepage || toolInfo.repository || '',
+        repository: toolInfo.repository || '',
+        latest: version,
+        versions: {
+          [version]: {
+            date: toolInfo.updated || toolInfo.created || new Date().toISOString(),
+            minClankerVersion: '0.1.0',
+            sha256: 'example-hash-will-be-computed'
+          }
+        },
+        tags: toolInfo.keywords || []
+      };
+    }
+    
+    // Fallback to old method for backward compatibility
     const repositories = await this.repoManager.getRepositories();
     const errors: string[] = [];
     
@@ -155,10 +198,19 @@ export class RegistryClient {
     // Try each repository in priority order
     for (const repo of repositories) {
       try {
+        // Try to download from releases first
+        if (repo.url.includes('github.com')) {
+          const releaseBuffer = await this.downloadFromRelease(repo, tool, version);
+          if (releaseBuffer) {
+            return releaseBuffer;
+          }
+        }
+        
+        // Fallback to raw content
         const registryUrl = this.getRegistryUrl(repo.url);
         const url = `${registryUrl}/tools/${tool.org}/${tool.name}/${version}/index.js`;
         
-        debug.log(`[Registry] Downloading ${tool.org}/${tool.name}@${version} from ${repo.name}`);
+        debug.log(`[Registry] Downloading ${tool.org}/${tool.name}@${version} from ${repo.name} (raw)`);
         
         const response = await fetch(url);
         if (!response.ok) {
@@ -177,6 +229,64 @@ export class RegistryClient {
     
     // Tool not found in any repository
     throw new Error(`Failed to download tool ${tool.org}/${tool.name}@${version}\nTried:\n${errors.join('\n')}`);
+  }
+  
+  /**
+   * Download tool from GitHub release
+   */
+  private async downloadFromRelease(repo: any, tool: ToolIdentifier, version: string): Promise<Buffer | null> {
+    try {
+      const match = repo.url.match(/github\.com\/([^/]+)\/([^/]+)/);
+      if (!match) return null;
+      
+      const [, owner, repoName] = match;
+      
+      // Get the release (use cached if available)
+      let release = (this as any).currentRelease;
+      
+      if (!release) {
+        const releaseUrl = `https://api.github.com/repos/${owner}/${repoName}/releases/latest`;
+        const releaseResponse = await fetch(releaseUrl, {
+          headers: {
+            'Accept': 'application/vnd.github.v3+json',
+            ...(process.env.GITHUB_TOKEN && {
+              'Authorization': `token ${process.env.GITHUB_TOKEN}`
+            })
+          }
+        });
+        
+        if (!releaseResponse.ok) {
+          return null;
+        }
+        
+        release = await releaseResponse.json();
+      }
+      
+      // Look for the org archive
+      const orgAsset = release.assets?.find((asset: any) => 
+        asset.name === `${tool.org}.tar.gz`
+      );
+      
+      if (!orgAsset) {
+        debug.log(`[Registry] No ${tool.org}.tar.gz in release`);
+        return null;
+      }
+      
+      // Download the archive
+      debug.log(`[Registry] Downloading ${tool.org}.tar.gz from release`);
+      const response = await fetch(orgAsset.browser_download_url);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to download archive: ${response.statusText}`);
+      }
+      
+      const buffer = await response.arrayBuffer();
+      return Buffer.from(buffer);
+      
+    } catch (error) {
+      debug.error(`[Registry] Error downloading from release:`, error);
+      return null;
+    }
   }
 
   /**
@@ -266,5 +376,70 @@ export class RegistryClient {
       hash = hash & hash; // Convert to 32bit integer
     }
     return Math.abs(hash).toString(16);
+  }
+  
+  /**
+   * Fetch tools from GitHub releases
+   */
+  private async fetchFromGitHubReleases(repo: any): Promise<ToolRegistry | null> {
+    try {
+      const match = repo.url.match(/github\.com\/([^/]+)\/([^/]+)/);
+      if (!match) return null;
+      
+      const [, owner, repoName] = match;
+      debug.log(`[Registry] Checking for releases in ${owner}/${repoName}`);
+      
+      // Get latest release
+      const releaseUrl = `https://api.github.com/repos/${owner}/${repoName}/releases/latest`;
+      const releaseResponse = await fetch(releaseUrl, {
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          ...(process.env.GITHUB_TOKEN && {
+            'Authorization': `token ${process.env.GITHUB_TOKEN}`
+          })
+        }
+      });
+      
+      if (!releaseResponse.ok) {
+        debug.log(`[Registry] No releases found for ${repo.name} (${releaseResponse.status})`);
+        return null;
+      }
+      
+      const release = await releaseResponse.json();
+      
+      // Find tools.json asset
+      const toolsAsset = release.assets?.find((asset: any) => 
+        asset.name === 'tools.json'
+      );
+      
+      if (!toolsAsset) {
+        debug.log(`[Registry] No tools.json in release for ${repo.name}`);
+        return null;
+      }
+      
+      // Download tools.json
+      debug.log(`[Registry] Downloading tools.json from release ${release.tag_name}`);
+      const toolsResponse = await fetch(toolsAsset.browser_download_url);
+      
+      if (!toolsResponse.ok) {
+        throw new Error(`Failed to download tools.json: ${toolsResponse.statusText}`);
+      }
+      
+      const toolsIndex = await toolsResponse.json();
+      
+      // Store release info for later use in downloadTool
+      (this as any).currentRelease = release;
+      
+      // Transform to our format
+      return {
+        version: toolsIndex.version || '1.0.0',
+        tools: toolsIndex.tools || [],
+        updated: toolsIndex.timestamp || new Date().toISOString()
+      };
+      
+    } catch (error) {
+      debug.error(`[Registry] Error fetching from releases:`, error);
+      return null;
+    }
   }
 }
