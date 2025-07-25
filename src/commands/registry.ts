@@ -5,7 +5,8 @@ export class CommandRegistryImpl implements CommandRegistry {
 
     register(command: CommandDefinition): void {
         if (this.commands.has(command.name)) {
-            throw new Error(`Command "${command.name}" is already registered`);
+            console.warn(`Command "${command.name}" is already registered, skipping`);
+            return;
         }
         this.commands.set(command.name, command);
     }

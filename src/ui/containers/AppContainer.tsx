@@ -6,6 +6,7 @@ import { StageType } from '../stage/types';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { SettingsManager, Settings, ProviderModels } from '../../utils/settings-manager';
 import { actions } from '../../store';
+import { registerBuiltinCommands } from '../../commands/builtin';
 
 interface AppContainerProps {
     agent?: GrokAgent;
@@ -18,6 +19,12 @@ export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent 
     const settingsManager = SettingsManager.getInstance();
     
     useEffect(() => {
+        // Register built-in commands once on app startup
+        registerBuiltinCommands();
+        
+        // Load settings
+        actions.loadSettings();
+        
         // Check if settings need configuration
         if (!agent && settingsManager.needsConfiguration()) {
             setShowSettings(true);

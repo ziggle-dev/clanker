@@ -2,8 +2,14 @@ import { registerCommand } from './registry';
 import { actions } from '../store';
 import { StageType } from '../ui/stage/types';
 
+let hasRegistered = false;
+
 // Register built-in commands
 export function registerBuiltinCommands() {
+    if (hasRegistered) {
+        return;
+    }
+    hasRegistered = true;
     // Clear command
     registerCommand({
         name: 'clear',

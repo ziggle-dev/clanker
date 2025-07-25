@@ -18,7 +18,6 @@ import {useProcessingTimer} from "../../hooks/useProcessingTimer";
 import {useRegistries} from "../../hooks/useRegistries";
 import {store, actions} from "../../store";
 import {StageType} from "../stage/types";
-import {registerBuiltinCommands} from "../../commands/builtin";
 
 interface ChatContainerProps {
     agent: GrokAgent;
@@ -83,11 +82,6 @@ export function ChatContainer({agent}: ChatContainerProps) {
         confirmationService.setSessionFlag("allOperations", newAutoEditState);
     }, [snap.autoEditEnabled, confirmationService]);
 
-    // Initialize store settings and commands on mount
-    useEffect(() => {
-        actions.loadSettings();
-        registerBuiltinCommands();
-    }, []);
 
     // Handle keyboard input directly here
     useInput((inputChar: string, key: { [key: string]: boolean }) => {
