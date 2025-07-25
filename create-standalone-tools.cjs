@@ -177,6 +177,117 @@ module.exports = {
     }
   ]
 };
+`,
+
+  'write_file.js': `
+module.exports = {
+  id: 'write_file',
+  name: 'Write File',
+  description: 'Write content to a file',
+  execute: async ({ path: filePath, content }) => {
+    const fs = require('fs').promises;
+    const path = require('path');
+    
+    try {
+      // Ensure directory exists
+      const dir = path.dirname(filePath);
+      await fs.mkdir(dir, { recursive: true });
+      
+      // Write the file
+      await fs.writeFile(filePath, content, 'utf8');
+      
+      return {
+        success: true,
+        output: \`File written successfully to \${filePath}\`
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+  arguments: [
+    {
+      name: 'path',
+      type: 'string',
+      description: 'Path to the file to write',
+      required: true
+    },
+    {
+      name: 'content',
+      type: 'string',
+      description: 'Content to write to the file',
+      required: true
+    }
+  ]
+};
+`,
+
+  'search.js': `
+module.exports = {
+  id: 'search',
+  name: 'Search',
+  description: 'Search for files containing a pattern',
+  execute: async ({ pattern, path: searchPath, file_pattern }) => {
+    const { exec } = require('child_process');
+    const { promisify } = require('util');
+    const execAsync = promisify(exec);
+    
+    const targetPath = searchPath || process.cwd();
+    
+    try {
+      // Build grep command
+      let command = \`grep -r "\${pattern}" "\${targetPath}"\`;
+      
+      if (file_pattern) {
+        command = \`find "\${targetPath}" -name "\${file_pattern}" -exec grep -l "\${pattern}" {} \\\\;\`;
+      }
+      
+      const { stdout, stderr } = await execAsync(command, {
+        encoding: 'utf8',
+        maxBuffer: 1024 * 1024 * 10 // 10MB buffer
+      });
+      
+      return {
+        success: true,
+        output: stdout || 'No matches found'
+      };
+    } catch (error) {
+      // Grep returns exit code 1 when no matches found
+      if (error.code === 1) {
+        return {
+          success: true,
+          output: 'No matches found'
+        };
+      }
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  },
+  arguments: [
+    {
+      name: 'pattern',
+      type: 'string',
+      description: 'Pattern to search for',
+      required: true
+    },
+    {
+      name: 'path',
+      type: 'string',
+      description: 'Directory to search in',
+      required: false
+    },
+    {
+      name: 'file_pattern',
+      type: 'string',
+      description: 'File pattern to match (e.g., "*.js")',
+      required: false
+    }
+  ]
+};
 `
 };
 
