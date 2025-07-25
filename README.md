@@ -297,7 +297,7 @@ npm install -g @ziggle/clanker
 npx @ziggle/clanker
 
 # Development
-git clone https://github.com/ziggle/clanker
+git clone https://github.com/ziggle-dev/clanker
 cd clanker
 npm install
 npm run dev
@@ -315,12 +315,12 @@ npm run dev
 
 - 📚 [Documentation](https://clanker.dev)
 - 💬 [Discord](https://discord.gg/clanker)
-- 🐛 [Issues](https://github.com/ziggle/clanker/issues)
-- ⭐ [Star on GitHub](https://github.com/ziggle/clanker)
+- 🐛 [Issues](https://github.com/ziggle-dev/clanker/issues)
+- ⭐ [Star on GitHub](https://github.com/ziggle-dev/clanker)
 
 ## 📄 License
 
-MIT © [Ziggle](https://github.com/ziggle)
+MIT © [Ziggle](https://github.com/ziggle-dev)
 
 ---
 

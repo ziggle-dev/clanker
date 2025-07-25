@@ -92,3 +92,4 @@ temp/
 # Coding agents
 .claude/
 *.git.*
+CLAUDE.md
