@@ -55,7 +55,7 @@ export class ToolLoader {
     constructor(private registry: ToolRegistry, options: LoaderOptions = {}) {
         // Get user home directory in a cross-platform way
         const homeDir = os.homedir();
-        const clankDir = path.join(homeDir, '.clank');
+        const clankDir = path.join(homeDir, '.clanker');
         
         this.options = {
             directories: options.directories || [process.cwd(), clankDir],
@@ -64,6 +64,8 @@ export class ToolLoader {
             watch: options.watch ?? false,
             loadBuiltins: options.loadBuiltins ?? true
         };
+        
+        debug.log(`[ToolLoader] Configured directories:`, this.options.directories);
     }
 
     /**
@@ -78,6 +80,7 @@ export class ToolLoader {
         // Load from each configured directory
         for (const dir of this.options.directories) {
             const toolsDir = path.join(dir, dir.endsWith('tools') ? '' : 'tools');
+            debug.log(`[ToolLoader] Loading from directory: ${dir} -> ${toolsDir}`);
             await this.loadFromDirectory(toolsDir);
         }
 
@@ -122,9 +125,11 @@ export class ToolLoader {
     private async loadFromDirectory(directory: string): Promise<void> {
         // Early return if directory doesn't exist
         if (!await this.exists(directory)) {
+            debug.log(`[ToolLoader] Directory does not exist: ${directory}`);
             return;
         }
 
+        debug.log(`[ToolLoader] Scanning directory: ${directory}`);
         try {
             await this.scanDirectory(directory, this.options.recursive);
         } catch (error) {
@@ -150,6 +155,7 @@ export class ToolLoader {
             .filter(entry => entry.isFile() && this.isToolFile(entry.name))
             .map(entry => path.join(directory, entry.name));
 
+        debug.log(`[ToolLoader] Found ${files.length} tool files in ${directory}`);
         for (const file of files) {
             await this.loadToolFile(file);
         }
@@ -171,14 +177,19 @@ export class ToolLoader {
      */
     private async loadToolFile(filePath: string): Promise<void> {
         try {
+            debug.log(`[ToolLoader] Attempting to load: ${filePath}`);
             // Dynamic import
             const moduleExports = await this.importModule(filePath);
+            debug.log(`[ToolLoader] Module exports for ${filePath}:`, Object.keys(moduleExports));
+            
             const tool = await this.extractTool(moduleExports);
 
             if (!tool) {
                 debug.warn(`[ToolLoader] No valid tool found in ${filePath}`);
                 return;
             }
+
+            debug.log(`[ToolLoader] Extracted tool:`, { id: tool.id, name: tool.name });
 
             // Validate tool
             if (!this.isValidTool(tool)) {
@@ -205,11 +216,51 @@ export class ToolLoader {
      * Import a module handling TypeScript if needed
      */
     private async importModule(filePath: string): Promise<any> {
-        // Convert to file URL for dynamic import
-        const fileUrl = pathToFileURL(filePath).href;
-        
         try {
-            // Dynamic import works for both JS and TS when tsx is loaded
+            // For .js files in production, try different approaches
+            if (filePath.endsWith('.js')) {
+                // First try createRequire which works in ESM context
+                try {
+                    const { createRequire } = await import('module');
+                    // Use process.cwd() as fallback if import.meta.url is not available
+                    const baseUrl = typeof import.meta !== 'undefined' && import.meta.url 
+                        ? import.meta.url 
+                        : pathToFileURL(process.cwd() + '/').href;
+                    const require = createRequire(baseUrl);
+                    // Clear cache to ensure fresh load
+                    delete require.cache[filePath];
+                    const module = require(filePath);
+                    debug.log(`[ToolLoader] Loaded ${filePath} using createRequire`);
+                    return module;
+                } catch (error) {
+                    debug.log(`[ToolLoader] createRequire failed for ${filePath}:`, error);
+                }
+                
+                // Try Node.js require directly (for CommonJS modules)
+                try {
+                    // Use eval to avoid bundler trying to resolve require
+                    const requireFunc = eval('require');
+                    delete requireFunc.cache[filePath];
+                    const module = requireFunc(filePath);
+                    debug.log(`[ToolLoader] Loaded ${filePath} using direct require`);
+                    return module;
+                } catch (error) {
+                    debug.log(`[ToolLoader] Direct require failed for ${filePath}:`, error);
+                }
+                
+                // Try dynamic import with file URL
+                try {
+                    const fileUrl = pathToFileURL(filePath).href;
+                    const module = await import(fileUrl);
+                    debug.log(`[ToolLoader] Loaded ${filePath} using dynamic import`);
+                    return module;
+                } catch (error) {
+                    debug.log(`[ToolLoader] Dynamic import failed for ${filePath}:`, error);
+                }
+            }
+            
+            // For TypeScript files (.ts, .tsx), use dynamic import
+            const fileUrl = pathToFileURL(filePath).href;
             const module = await import(fileUrl);
             return module;
         } catch (error) {

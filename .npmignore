@@ -1,6 +1,7 @@
 # Source files (only include built dist/)
 src/
 tsconfig.json
+tsup.config.ts
 
 # Development and build tools
 .gitignore

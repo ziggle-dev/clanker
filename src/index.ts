@@ -92,6 +92,9 @@ async function processPromptHeadless(
             dynamicToolsPath
         });
 
+        // Wait for tools to load
+        await agent.waitForToolsToLoad();
+
         // Configure confirmation service for headless mode (auto-approve all operations)
         const confirmationService = ConfirmationService.getInstance();
         confirmationService.setSessionFlag("allOperations", true);
@@ -133,7 +136,7 @@ program
     .description(
         "Test the new dynamic tool registry system for Grok CLI"
     )
-    .version("2.0.0")
+    .version("0.1.0")
     .option("-d, --directory <dir>", "set working directory", process.cwd())
     .option("-k, --api-key <key>", "API key (or set CLANKER_API_KEY env var)")
     .option(
@@ -205,6 +208,9 @@ program
                     loadDynamicTools: options.loadDynamicTools,
                     dynamicToolsPath: options.toolsPath
                 });
+
+                // Wait for tools to load
+                await agent.waitForToolsToLoad();
 
                 const registry = agent.getRegistry();
                 const tools = registry.list();

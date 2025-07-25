@@ -15,6 +15,7 @@ import { createToolExecutorWithRetry } from '../registry/retry-executor';
 import {EventEmitter} from 'events';
 import {TokenCounter, createTokenCounter} from '../utils/token-counter';
 import {debug} from '../utils/debug-logger';
+import * as path from 'path';
 
 
 interface GrokAgentOptions {
@@ -65,6 +66,12 @@ export class GrokAgent extends EventEmitter {
         // Create tool loader with appropriate directories
         const directories: string[] = [];
 
+        // Always include ~/.clanker
+        const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+        if (homeDir) {
+            directories.push(path.join(homeDir, '.clanker'));
+        }
+
         // Add custom path if specified
         if (options.dynamicToolsPath) {
             directories.push(options.dynamicToolsPath);
@@ -75,7 +82,7 @@ export class GrokAgent extends EventEmitter {
             directories.push(process.cwd());
         }
 
-        // Create loader (it will automatically include ~/.clank)
+        // Create loader
         this.toolLoader = createToolLoader(this.registry, {
             directories: directories.length > 0 ? directories : undefined,
             recursive: true,
@@ -83,10 +90,7 @@ export class GrokAgent extends EventEmitter {
             loadBuiltins: true
         });
 
-        // Load tools asynchronously
-        this.toolLoader.loadTools().catch(error => {
-            debug.error('[Agent] Failed to load tools:', error);
-        });
+        // Tools will be loaded when needed via waitForToolsToLoad()
     }
 
 
@@ -387,6 +391,12 @@ export class GrokAgent extends EventEmitter {
     // Public API for registry access
     getRegistry(): ToolRegistry {
         return this.registry;
+    }
+    
+    async waitForToolsToLoad(): Promise<void> {
+        if (this.toolLoader) {
+            await this.toolLoader.loadTools();
+        }
     }
 
     // Get tool statistics
