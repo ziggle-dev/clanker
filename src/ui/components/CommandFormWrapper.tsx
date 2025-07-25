@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { 
     Form, 
@@ -24,14 +24,7 @@ const CommandFormInner: React.FC<{
 }> = React.memo(({ commandOptions, onCancel }) => {
     const registry = getCommandRegistry();
     const { values } = useForm();
-    const [selectedCommand, setSelectedCommand] = useState('');
-    
-    // Update selected command when form value changes
-    useEffect(() => {
-        if (values.command !== selectedCommand) {
-            setSelectedCommand(values.command || '');
-        }
-    }, [values.command]);
+    const selectedCommand = values.command || '';
     
     const commandDef = useMemo(() => 
         selectedCommand ? registry.get(selectedCommand) : null,
@@ -169,7 +162,7 @@ export const CommandForm: React.FC<CommandFormProps> = ({ onCancel, onExecute })
     
     // Calculate initial values with defaults
     const initialValues: Record<string, any> = {
-        command: ''
+        command: commandOptions[0]?.value || ''
     };
     
     return (

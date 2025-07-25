@@ -14,7 +14,18 @@ export const ChatInput: React.FC = () => {
     const isProcessing = snap.isProcessing;
     const isStreaming = snap.isStreaming;
     return (
-        <Box borderStyle="round" borderColor="gray" paddingX={1} marginTop={0}>
+        <Box 
+            borderStyle="single" 
+            borderColor="gray" 
+            borderTop={true}
+            borderLeft={true}
+            borderRight={true}
+            borderBottom={false}
+            paddingX={1} 
+            paddingY={0}
+            marginTop={1}
+            marginBottom={0}
+        >
             <Text color="gray">❯ </Text>
             <Text>
                 {inputValue}

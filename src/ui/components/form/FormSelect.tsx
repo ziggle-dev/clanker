@@ -34,6 +34,7 @@ export const FormSelect: React.FC<FormSelectProps> = ({
         setHasSearchQuery
     } = useForm();
 
+    // Register field on mount
     useEffect(() => {
         registerField({
             id: name,
@@ -44,16 +45,17 @@ export const FormSelect: React.FC<FormSelectProps> = ({
             validation
         });
 
-        // Set initial value if not set (only on mount)
-        if (values[name] === undefined && options.length > 0) {
-            // Use setTimeout to avoid setting state during render
-            setTimeout(() => setValue(name, options[0].value), 0);
-        }
-
         return () => {
             unregisterField(name);
         };
-    }, [name, row, column, required, validation, registerField, unregisterField, options, setValue, values]);
+    }, [name, row, column, required, validation, registerField, unregisterField]);
+    
+    // Set initial value separately to avoid dependency on values
+    useEffect(() => {
+        if (values[name] === undefined && options.length > 0) {
+            setValue(name, options[0].value);
+        }
+    }, []); // Empty deps - only run on mount
 
     const handleChange = (value: string) => {
         setValue(name, value);
