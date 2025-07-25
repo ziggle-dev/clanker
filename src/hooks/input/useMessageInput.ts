@@ -1,4 +1,4 @@
-import {useCallback, MutableRefObject} from 'react';
+import {useCallback, MutableRefObject, useRef} from 'react';
 import {actions, store} from '../../store';
 import {useSnapshot} from 'valtio';
 import {GrokAgent} from '../../clanker/agent';
@@ -27,6 +27,10 @@ export const useMessageInput = ({
     
     // Get store state for auto-edit
     const snap = useSnapshot(store);
+    
+    // Refs for throttled updates
+    const contentBufferRef = useRef<{ [messageId: string]: string }>({});
+    const updateTimerRef = useRef<{ [messageId: string]: NodeJS.Timeout | null }>({});
 
     const sendMessage = useCallback(
         async (content: string) => {
@@ -78,6 +82,7 @@ export const useMessageInput = ({
 
                 actions.setStreaming(true);
                 actions.setProcessing(false);
+                debug.log('[useMessageInput] Starting to stream response...');
 
                 const response = await agent.chat(messages, systemPrompt || undefined, true);
 
@@ -94,16 +99,59 @@ export const useMessageInput = ({
                             case 'content':
                                 if (chunk.content) {
                                     if (!currentAssistantMessage || hasToolCalls) {
+                                        debug.log('[useMessageInput] Creating new assistant message');
+                                        // Create message with first chunk of content immediately
                                         currentAssistantMessage = messageRegistry.addMessage({
                                             role: "assistant",
-                                            content: "", // Start with empty content since we'll append
+                                            content: chunk.content, // Start with first chunk
                                             metadata: {isStreaming: true},
                                         });
                                         hasToolCalls = false; // Reset for new message
+                                        
+                                        // Initialize buffer with this content
+                                        contentBufferRef.current[currentAssistantMessage.id] = chunk.content;
+                                        debug.log(`[useMessageInput] Created message with initial content: ${chunk.content.substring(0, 50)}...`);
+                                        continue; // Skip the buffering logic below since we already added content
                                     }
 
-                                    // Append content directly without buffering
-                                    messageRegistry.appendToMessage(currentAssistantMessage.id, chunk.content);
+                                    // Buffer content and throttle updates
+                                    const messageId = currentAssistantMessage.id;
+                                    
+                                    // Initialize buffer if needed
+                                    if (!contentBufferRef.current[messageId]) {
+                                        contentBufferRef.current[messageId] = messageRegistry.getMessages().find(m => m.id === messageId)?.content || '';
+                                        
+                                        // First chunk - update immediately for instant feedback
+                                        contentBufferRef.current[messageId] += chunk.content;
+                                        messageRegistry.updateMessage(messageId, {
+                                            content: contentBufferRef.current[messageId]
+                                        });
+                                        debug.log(`[useMessageInput] First chunk displayed immediately for message ${messageId}`);
+                                    } else {
+                                        // Subsequent chunks - buffer and throttle
+                                        contentBufferRef.current[messageId] += chunk.content;
+                                        
+                                        // Clear existing timer
+                                        if (updateTimerRef.current[messageId]) {
+                                            clearTimeout(updateTimerRef.current[messageId]!);
+                                        }
+                                        
+                                        // Schedule update
+                                        updateTimerRef.current[messageId] = setTimeout(() => {
+                                            const bufferedContent = contentBufferRef.current[messageId];
+                                            if (bufferedContent) {
+                                                debug.log(`[useMessageInput] Updating message ${messageId} with ${bufferedContent.length} chars`);
+                                                messageRegistry.updateMessage(messageId, {
+                                                    content: bufferedContent
+                                                });
+                                            } else {
+                                                debug.warn(`[useMessageInput] No buffered content for message ${messageId}`);
+                                            }
+                                            updateTimerRef.current[messageId] = null;
+                                        }, 100); // Reduced from 250ms to 100ms for faster updates
+                                        
+                                        debug.log(`[useMessageInput] Buffered content for message ${messageId}: ${chunk.content.substring(0, 50)}...`);
+                                    }
                                 }
                                 break;
 
@@ -161,6 +209,9 @@ export const useMessageInput = ({
                                                 : `✗ ${chunk.toolCall.function.name} failed: ${chunk.toolResult.error}`,
                                         });
                                     }
+                                    
+                                    // Reset currentAssistantMessage so the next content creates a new message
+                                    currentAssistantMessage = null;
                                 }
                                 break;
 
@@ -168,25 +219,54 @@ export const useMessageInput = ({
                                 if (chunk.tokenCount !== undefined) {
                                     actions.updateTokenCount(chunk.tokenCount);
                                     if (currentAssistantMessage) {
-                                        messageRegistry.updateMessage(currentAssistantMessage.id, {
-                                            metadata: {
-                                                ...currentAssistantMessage.metadata,
-                                                tokenCount: chunk.tokenCount
-                                            },
-                                        });
+                                        // Get fresh message data to ensure we have latest metadata
+                                        const currentMsg = messageRegistry.getMessages().find(m => m.id === currentAssistantMessage.id);
+                                        if (currentMsg) {
+                                            messageRegistry.updateMessage(currentAssistantMessage.id, {
+                                                metadata: {
+                                                    ...currentMsg.metadata,
+                                                    tokenCount: chunk.tokenCount
+                                                },
+                                            });
+                                        }
                                     }
                                 }
                                 break;
 
                             case 'done':
                                 if (currentAssistantMessage) {
-                                    messageRegistry.updateMessage(currentAssistantMessage.id, {
-                                        metadata: {
-                                            ...currentAssistantMessage.metadata,
-                                            isStreaming: false,
-                                            processingTime: Date.now() - processingStartTime.current,
-                                        },
-                                    });
+                                    const messageId = currentAssistantMessage.id;
+                                    
+                                    // Flush any remaining buffered content
+                                    if (updateTimerRef.current[messageId]) {
+                                        clearTimeout(updateTimerRef.current[messageId]!);
+                                        updateTimerRef.current[messageId] = null;
+                                    }
+                                    
+                                    const finalContent = contentBufferRef.current[messageId];
+                                    const currentMsg = messageRegistry.getMessages().find(m => m.id === messageId);
+                                    
+                                    if (finalContent) {
+                                        messageRegistry.updateMessage(messageId, {
+                                            content: finalContent,
+                                            metadata: {
+                                                ...(currentMsg?.metadata || {}),
+                                                isStreaming: false,
+                                                processingTime: Date.now() - processingStartTime.current,
+                                            },
+                                        });
+                                    } else {
+                                        messageRegistry.updateMessage(messageId, {
+                                            metadata: {
+                                                ...(currentMsg?.metadata || {}),
+                                                isStreaming: false,
+                                                processingTime: Date.now() - processingStartTime.current,
+                                            },
+                                        });
+                                    }
+                                    
+                                    // Clean up buffers
+                                    delete contentBufferRef.current[messageId];
                                 }
                                 // Exit the async generator loop
                                 return;
@@ -202,6 +282,25 @@ export const useMessageInput = ({
                 actions.setProcessing(false);
                 actions.setStreaming(false);
                 processingStartTime.current = 0;
+                
+                // Clean up any remaining timers and buffers
+                Object.keys(updateTimerRef.current).forEach(messageId => {
+                    if (updateTimerRef.current[messageId]) {
+                        clearTimeout(updateTimerRef.current[messageId]!);
+                        
+                        // Flush any remaining content
+                        const bufferedContent = contentBufferRef.current[messageId];
+                        if (bufferedContent) {
+                            messageRegistry.updateMessage(messageId, {
+                                content: bufferedContent
+                            });
+                        }
+                    }
+                });
+                
+                // Clear all refs
+                contentBufferRef.current = {};
+                updateTimerRef.current = {};
             }
         },
         [agent, messageRegistry, executionRegistry, processingStartTime]

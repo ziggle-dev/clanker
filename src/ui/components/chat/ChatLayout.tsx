@@ -1,44 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Box, Text } from 'ink';
-import Gradient, { GradientName } from 'ink-gradient';
+import Gradient from 'ink-gradient';
 import BigText from 'ink-big-text';
-import { useSnapshot } from 'valtio';
-import { store } from '../../../store';
 
 interface ChatLayoutProps {
   children: React.ReactNode;
 }
 
-export const ChatLayout: React.FC<ChatLayoutProps> = ({ children }) => {
-  const snap = useSnapshot(store);
-  const [gradientIndex, setGradientIndex] = useState(0);
-  
-  const gradients: GradientName[] = [
-    'passion',
-    'fruit',
-    'morning',
-    'vice',
-    'mind',
-    'teen',
-    'summer',
-    'retro'
-  ];
-  
-  useEffect(() => {
-    if (!snap.isStreaming) return;
-    
-    const interval = setInterval(() => {
-      setGradientIndex((prev) => (prev + 1) % gradients.length);
-    }, 200); // Change gradient every 200ms while streaming
-    
-    return () => clearInterval(interval);
-  }, [snap.isStreaming]);
-  
+// Memoized static layout component
+export const ChatLayout: React.FC<ChatLayoutProps> = React.memo(({ children }) => {
   return (
-    <Box flexDirection="column" width="100%">
-      <Box paddingX={2}>
+    <Box flexDirection="column" width="100%" height="100%">
+      <Box paddingX={2} flexShrink={0} height={8}>
         <Box justifyContent="center" marginBottom={1}>
-          <Gradient name={snap.isStreaming ? gradients[gradientIndex] : 'passion'}>
+          <Gradient name="passion">
             <BigText text="CLANK" font="3d" />
           </Gradient>
         </Box>
@@ -48,7 +23,9 @@ export const ChatLayout: React.FC<ChatLayoutProps> = ({ children }) => {
           </Text>
         </Box>
       </Box>
-      {children}
+      <Box flexGrow={1} overflow="hidden">
+        {children}
+      </Box>
     </Box>
   );
-};
+});

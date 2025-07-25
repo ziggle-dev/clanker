@@ -10,7 +10,8 @@ export enum StageType {
     SETTINGS = 'settings',
     HELP = 'help',
     MODAL = 'modal',
-    EXIT_CONFIRMATION = 'exit_confirmation'
+    EXIT_CONFIRMATION = 'exit_confirmation',
+    TOOL_CONFIRMATION = 'tool_confirmation'
 }
 
 export interface StageManager {

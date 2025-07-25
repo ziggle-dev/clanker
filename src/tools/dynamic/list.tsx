@@ -2,6 +2,8 @@
  * List directory contents tool
  */
 
+import React from 'react';
+import { Box, Text } from 'ink';
 import { createTool, ToolCategory, ExtractToolArgs } from '../../registry';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -57,6 +59,41 @@ const listTool = createTool()
         }
     ])
     
+    .renderResult(({ isExecuting, result, arguments: args }) => {
+        if (isExecuting) {
+            return <Text color="cyan">⎿ Listing directory...</Text>;
+        }
+        
+        if (!result?.success) {
+            return <Text color="red">⎿ {result?.error || 'Failed to list directory'}</Text>;
+        }
+        
+        const data = result.data as { path: string; count: number; items: Array<{name: string; type: string; isDirectory: boolean}> };
+        if (!data?.items || data.items.length === 0) {
+            return <Text color="gray">⎿ Empty directory</Text>;
+        }
+        
+        // Limit display to prevent overwhelming the terminal
+        const maxItems = 20;
+        const displayItems = data.items.slice(0, maxItems);
+        const hasMore = data.items.length > maxItems;
+        
+        return (
+            <Box flexDirection="column" marginLeft={2}>
+                {displayItems.map((item, index) => (
+                    <Text key={index} color={item.isDirectory ? "cyan" : "white"}>
+                        ⎿ {item.isDirectory ? `[dir] ${item.name}/` : `[file] ${item.name}`}
+                    </Text>
+                ))}
+                {hasMore && (
+                    <Text color="gray" italic>
+                        ⎿ ... and {data.items.length - maxItems} more items
+                    </Text>
+                )}
+            </Box>
+        );
+    })
+    
     .execute(async (args, context) => {
         const targetPath = path.resolve(args.path as string || '.');
         const detailed = args.detailed as boolean || false;
@@ -81,13 +118,18 @@ const listTool = createTool()
                 return a.name.localeCompare(b.name);
             });
             
+            // Limit entries to prevent overwhelming output
+            const maxEntries = 100;
+            const truncated = entries.length > maxEntries;
+            const displayEntries = truncated ? entries.slice(0, maxEntries) : entries;
+            
             let output: string;
             const items: { name: string; type: 'dir' | 'file'; size?: number; isDirectory: boolean }[] = [];
             
             if (detailed) {
                 // Detailed view with file sizes
                 const detailedEntries = await Promise.all(
-                    entries.map(async (entry) => {
+                    displayEntries.map(async (entry) => {
                         const fullPath = path.join(targetPath, entry.name);
                         const stats = await fs.stat(fullPath);
                         
@@ -108,17 +150,21 @@ const listTool = createTool()
                 output = detailedEntries.join('\n');
             } else {
                 // Simple view
-                output = entries.map(entry => 
+                output = displayEntries.map(entry => 
                     entry.isDirectory() ? `${entry.name}/` : entry.name
                 ).join('\n');
                 
-                entries.forEach(entry => {
+                displayEntries.forEach(entry => {
                     items.push({
                         name: entry.name,
                         type: entry.isDirectory() ? 'dir' : 'file',
                         isDirectory: entry.isDirectory()
                     });
                 });
+            }
+            
+            if (truncated) {
+                output += `\n\n... and ${entries.length - maxEntries} more items`;
             }
             
             const summary = `Listed ${entries.length} items in ${targetPath}`;

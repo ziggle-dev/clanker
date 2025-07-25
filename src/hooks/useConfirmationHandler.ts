@@ -1,6 +1,7 @@
 import {useEffect, useCallback} from 'react';
 import {actions} from '../store';
 import {ConfirmationService, ConfirmationOptions} from '../utils/confirmation-service';
+import {StageType} from '../ui/stage/types';
 
 /**
  * Hook to handle confirmation dialogs with the confirmation service
@@ -15,8 +16,20 @@ export const useConfirmationHandler = () => {
 
     useEffect(() => {
         const handleConfirmationRequest = async (options: ConfirmationOptions) => {
-            const result = await actions.requestConfirmation(options);
-            confirmationService.confirmOperation(result.confirmed, result.dontAskAgain);
+            // Push the tool confirmation stage
+            actions.pushStage({
+                id: 'tool-confirmation',
+                type: StageType.TOOL_CONFIRMATION,
+                props: {
+                    options,
+                    onConfirm: (result: { confirmed: boolean; dontAskAgain?: boolean }) => {
+                        confirmationService.confirmOperation(result.confirmed, result.dontAskAgain);
+                    },
+                    onReject: (result: { confirmed: boolean; feedback?: string; dontAskAgain?: boolean }) => {
+                        confirmationService.rejectOperation(result.feedback);
+                    }
+                }
+            });
         };
 
         confirmationService.on("confirmation-requested", handleConfirmationRequest);

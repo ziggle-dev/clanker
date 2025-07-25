@@ -55,11 +55,13 @@ export function registerBuiltinCommands() {
                 description: 'Model',
                 required: true,
                 options: [
-                    { value: 'grok-4-latest', label: 'Grok 4 Latest' },
-                    { value: 'grok-3-latest', label: 'Grok 3 Latest' },
-                    { value: 'grok-4', label: 'Grok 4' },
+                    { value: 'grok-4-0709', label: 'Grok 4' },
                     { value: 'grok-3', label: 'Grok 3' },
-                    { value: 'grok-beta', label: 'Grok Beta' }
+                    { value: 'grok-3-mini', label: 'Grok 3 Mini' },
+                    { value: 'grok-3-fast', label: 'Grok 3 Fast' },
+                    { value: 'grok-3-mini-fast', label: 'Grok 3 Mini Fast' },
+                    { value: 'grok-2-vision-1212', label: 'Grok 2 Vision' },
+                    { value: 'grok-2-image-1212', label: 'Grok 2 Image' }
                 ]
             }
         ],
@@ -163,10 +165,83 @@ export function registerBuiltinCommands() {
     // Settings command
     registerCommand({
         name: 'settings',
-        description: 'Open settings configuration',
+        description: 'Configure application settings',
         category: 'System',
-        exec: () => {
-            actions.pushStage({ id: 'settings', type: StageType.SETTINGS });
+        arguments: [
+            {
+                name: 'model',
+                type: 'enum',
+                description: 'AI Model',
+                required: false,
+                options: [
+                    { value: 'grok-4-0709', label: 'Grok 4' },
+                    { value: 'grok-3', label: 'Grok 3' },
+                    { value: 'grok-3-mini', label: 'Grok 3 Mini' },
+                    { value: 'grok-3-fast', label: 'Grok 3 Fast' },
+                    { value: 'grok-3-mini-fast', label: 'Grok 3 Mini Fast' },
+                    { value: 'grok-2-vision-1212', label: 'Grok 2 Vision' },
+                    { value: 'grok-2-image-1212', label: 'Grok 2 Image' }
+                ]
+            },
+            {
+                name: 'theme',
+                type: 'enum',
+                description: 'Theme',
+                required: false,
+                options: [
+                    { value: 'auto', label: 'Auto' },
+                    { value: 'light', label: 'Light' },
+                    { value: 'dark', label: 'Dark' }
+                ]
+            },
+            {
+                name: 'autoEditEnabled',
+                type: 'boolean',
+                description: 'Auto-edit (file operations only)',
+                default: false
+            },
+            {
+                name: 'vsCodeOpenEnabled',
+                type: 'boolean',
+                description: 'VS Code integration',
+                default: false
+            },
+            {
+                name: 'dangerousBypassPermission',
+                type: 'boolean',
+                description: 'Dangerously bypass permissions ⚠️',
+                default: false
+            }
+        ],
+        exec: async (args) => {
+            // Load current settings
+            const { SettingsManager } = await import('../utils/settings-manager');
+            const settingsManager = SettingsManager.getInstance();
+            const { settings } = settingsManager.loadSettings();
+            
+            // Merge with provided arguments
+            const updatedSettings = {
+                ...settings,
+                ...args
+            };
+            
+            // Update store
+            if (args.model !== undefined) actions.setModel(args.model);
+            if (args.theme !== undefined) actions.setTheme(args.theme);
+            if (args.autoEditEnabled !== undefined) actions.setAutoEdit(args.autoEditEnabled);
+            if (args.vsCodeOpenEnabled !== undefined) actions.setVSCodeOpen(args.vsCodeOpenEnabled);
+            if (args.dangerousBypassPermission !== undefined) actions.setDangerousBypassPermission(args.dangerousBypassPermission);
+            
+            // Save to settings.json
+            if (settings.apiKey) {
+                settingsManager.saveSettings({
+                    ...settings,
+                    ...updatedSettings
+                } as any);
+                console.log('Settings updated successfully');
+            } else {
+                console.log('Settings updated (not saved - API key required)');
+            }
         }
     });
     
@@ -176,7 +251,13 @@ export function registerBuiltinCommands() {
         description: 'Show available commands',
         category: 'System',
         exec: () => {
-            actions.pushStage({ id: 'help', type: StageType.HELP });
+            // Check if we're in command palette and replace it with help
+            const currentStage = actions.getCurrentStage();
+            if (currentStage.type === StageType.COMMAND_PALETTE) {
+                actions.replaceStage({ id: 'help', type: StageType.HELP });
+            } else {
+                actions.pushStage({ id: 'help', type: StageType.HELP });
+            }
         }
     });
 }

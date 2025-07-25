@@ -2,6 +2,8 @@
  * Input tool - Platform-specific input dialog for getting user input
  */
 
+import React from 'react';
+import {Text} from 'ink';
 import * as child_process from 'child_process';
 import * as os from 'os';
 import {promisify} from 'util';
@@ -50,6 +52,23 @@ export const inputTool = createTool()
         }
     ])
 
+    // Render result
+    .renderResult(({ isExecuting, result, arguments: args }) => {
+        if (isExecuting) {
+            return <Text color="cyan">⎿ Waiting for user input...</Text>;
+        }
+        
+        if (!result?.success) {
+            return <Text color="red">⎿ {result?.error || 'Failed to get input'}</Text>;
+        }
+        
+        if (args.password) {
+            return <Text color="gray">⎿ User provided input (hidden)</Text>;
+        }
+        
+        return <Text color="gray">⎿ User input: {result.output}</Text>;
+    })
+    
     // Execute
     .execute(async (args, context) => {
         const {prompt, default_value, title, password} = args as {
@@ -113,9 +132,22 @@ export const inputTool = createTool()
  * Show input dialog on macOS using AppleScript
  */
 async function showMacOSDialog(prompt: string, defaultValue?: string, title?: string, password?: boolean): Promise<string> {
-    const escapedPrompt = prompt.replace(/"/g, '\\"');
-    const escapedTitle = (title || 'Input Required').replace(/"/g, '\\"');
-    const escapedDefault = (defaultValue || '').replace(/"/g, '\\"');
+    // Escape both single and double quotes properly for AppleScript
+    const escapedPrompt = prompt
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/'/g, "'\\''")
+        .replace(/\n/g, ' ');
+    const escapedTitle = (title || 'Input Required')
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/'/g, "'\\''")
+        .replace(/\n/g, ' ');
+    const escapedDefault = (defaultValue || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/"/g, '\\"')
+        .replace(/'/g, "'\\''")
+        .replace(/\n/g, ' ');
 
     let script: string;
     if (password) {

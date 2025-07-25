@@ -2,6 +2,8 @@
  * PWD (Print Working Directory) tool
  */
 
+import React from 'react';
+import { Text } from 'ink';
 import { createTool, ToolCategory, ExtractToolArgs } from '../../registry';
 
 /**
@@ -21,6 +23,18 @@ const pwdTool = createTool()
             result: "/Users/username/projects/my-app"
         }
     ])
+    
+    .renderResult(({ isExecuting, result }) => {
+        if (isExecuting) {
+            return <Text color="cyan">⎿ Getting current directory...</Text>;
+        }
+        
+        if (!result?.success) {
+            return <Text color="red">⎿ {result?.error || 'Failed to get working directory'}</Text>;
+        }
+        
+        return <Text color="gray">⎿ {result.output}</Text>;
+    })
     
     .execute(async (args, context) => {
         const cwd = process.cwd();

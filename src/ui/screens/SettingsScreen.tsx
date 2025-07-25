@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Text, useInput, useApp } from 'ink';
-import { Form, FormInput, FormButton, FormSelect, ProviderSelect, ClearFormButton, VimModeIndicator } from '../components/form';
-import { SettingsManager, Settings, ProviderModels, Provider } from '../../utils/settings-manager';
+import React, {useState, useEffect} from 'react';
+import {Box, Text} from 'ink';
+import {Form, FormInput, FormButton, FormSelect, FormToggle, ProviderSelect, ClearFormButton} from '../components/form';
+import {SettingsManager, Settings, ProviderModels, Provider} from '../../utils/settings-manager';
 
 // Compact Clank logo component with color cycling
 const CompactClankLogo: React.FC = () => {
@@ -16,8 +16,8 @@ const CompactClankLogo: React.FC = () => {
     }, []);
 
     return (
-        <Box 
-            borderStyle="round" 
+        <Box
+            borderStyle="round"
             borderColor={colors[colorIndex]}
             paddingX={2}
             marginBottom={2}
@@ -40,13 +40,13 @@ interface SettingsScreenProps {
     onCancel?: () => void;
 }
 
-export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onComplete, onCancel }) => {
+export const SettingsScreen: React.FC<SettingsScreenProps> = ({onComplete, onCancel}) => {
     const settingsManager = SettingsManager.getInstance();
     const [initialValues, setInitialValues] = useState<Partial<Settings>>({});
     const [selectedProvider, setSelectedProvider] = useState<Provider>('grok');
 
     useEffect(() => {
-        const { settings } = settingsManager.loadSettings();
+        const {settings} = settingsManager.loadSettings();
         setInitialValues(settings);
         if (settings.provider) {
             setSelectedProvider(settings.provider as Provider);
@@ -55,7 +55,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onComplete, onCa
 
     // Escape key is handled by the form system, not here
 
-    const handleSubmit = async (values: Record<string, any>) => {
+    const handleSubmit = async (values: Record<string, any>): Promise<void> => {
         try {
             // Ensure all required fields are present
             const settings: Settings = {
@@ -65,15 +65,16 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onComplete, onCa
                 theme: values.theme || 'auto',
                 autoEditEnabled: values.autoEditEnabled || false,
                 vsCodeOpenEnabled: values.vsCodeOpenEnabled || false,
+                dangerousBypassPermission: values.dangerousBypassPermission || false,
                 confirmationSettings: values.confirmationSettings || {
                     alwaysEdit: false,
                     alwaysBash: false,
                     alwaysSearch: false
                 },
-                ...(selectedProvider === 'custom' && values.customBaseURL ? { customBaseURL: values.customBaseURL } : {})
+                ...(selectedProvider === 'custom' && values.customBaseURL ? {customBaseURL: values.customBaseURL} : {})
             };
-            
-            console.log('Saving settings:', { ...settings, apiKey: '***' });
+
+            console.log('Saving settings:', {...settings, apiKey: '***'});
             settingsManager.saveSettings(settings);
             onComplete(settings);
         } catch (error) {
@@ -113,11 +114,13 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onComplete, onCa
     return (
         <Box flexDirection="column" paddingX={2} paddingY={1} width="100%">
             <Box justifyContent="center">
-                <CompactClankLogo />
+                <CompactClankLogo/>
             </Box>
-            
+
             <Box justifyContent="center" marginBottom={2}>
-                <Text bold color="cyan">Initial Configuration</Text>
+                <Text bold color="cyan">
+                    {Object.keys(initialValues).length > 0 ? 'Settings' : 'Initial Configuration'}
+                </Text>
             </Box>
 
             <Form onSubmit={handleSubmit} initialValues={initialValues}>
@@ -165,20 +168,44 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onComplete, onCa
                             />
                         </Box>
                     )}
-                    
+
                     <Box flexGrow={1} flexBasis={selectedProvider === 'custom' ? "100%" : "50%"}>
                         <FormSelect
                             name="theme"
                             label="Theme"
                             options={[
-                                { label: 'Auto', value: 'auto' },
-                                { label: 'Light', value: 'light' },
-                                { label: 'Dark', value: 'dark' }
+                                {label: 'Auto', value: 'auto'},
+                                {label: 'Light', value: 'light'},
+                                {label: 'Dark', value: 'dark'}
                             ]}
                             row={selectedProvider === 'custom' ? 3 : 2}
                             column={selectedProvider === 'custom' ? 0 : 1}
                         />
                     </Box>
+                </Box>
+
+                {/* Toggle Settings */}
+                <Box marginTop={1} flexDirection="column" gap={1}>
+                    <FormToggle
+                        name="autoEditEnabled"
+                        label="Auto-edit (file operations only)"
+                        row={selectedProvider === 'custom' ? 4 : 3}
+                        column={0}
+                    />
+
+                    <FormToggle
+                        name="vsCodeOpenEnabled"
+                        label="VS Code integration"
+                        row={selectedProvider === 'custom' ? 5 : 4}
+                        column={0}
+                    />
+
+                    <FormToggle
+                        name="dangerousBypassPermission"
+                        label="Dangerously bypass permissions⚠"
+                        row={selectedProvider === 'custom' ? 6 : 5}
+                        column={0}
+                    />
                 </Box>
 
                 {/* Action buttons row with overlap styling */}
@@ -190,12 +217,12 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onComplete, onCa
                                 label="Cancel"
                                 onPress={onCancel}
                                 variant="secondary"
-                                row={selectedProvider === 'custom' ? 4 : 3}
+                                row={selectedProvider === 'custom' ? 7 : 6}
                                 column={0}
                             />
                         )}
                     </Box>
-                    
+
                     <Box flexDirection="row" gap={1}>
                         <ClearFormButton
                             name="clear"

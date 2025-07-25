@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text } from 'ink';
 import { useSnapshot } from 'valtio';
 import { store } from '../../../store';
@@ -27,12 +27,14 @@ const spinnerFrames = ["⣷", "⣯", "⣟", "⡿", "⢿", "⣻", "⣽", "⣾"];
  * LoadingAndStatus component - shows loading indicator and progress bar
  * Positioned above the chat input
  */
-export const LoadingAndStatus: React.FC = () => {
+export const LoadingAndStatus: React.FC = React.memo(() => {
   const snap = useSnapshot(store);
   
-  // Check if any tools are executing
-  const hasExecutingTools = Array.from(snap.executions.values()).some(
-    (execution) => execution.status === "executing"
+  // Memoize execution check to prevent re-computation
+  const hasExecutingTools = useMemo(() => 
+    Array.from(snap.executions.values()).some(
+      (execution) => execution.status === "executing"
+    ), [snap.executions]
   );
   
   // Determine if loading indicator should be active
@@ -114,4 +116,4 @@ export const LoadingAndStatus: React.FC = () => {
       )}
     </Box>
   );
-};
+});

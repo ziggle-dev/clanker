@@ -12,6 +12,7 @@ import {
     generateGrokTools,
     createToolExecutor
 } from '../registry';
+import { createToolExecutorWithRetry } from '../registry/retry-executor';
 import {EventEmitter} from 'events';
 import {TokenCounter, createTokenCounter} from '../utils/token-counter';
 import {debug} from '../utils/debug-logger';
@@ -59,8 +60,8 @@ export class GrokAgent extends EventEmitter {
         // Create registry
         this.registry = createToolRegistry();
 
-        // Create tool executor
-        this.executeToolWithRegistry = createToolExecutor(this.registry);
+        // Create tool executor with retry logic
+        this.executeToolWithRegistry = createToolExecutorWithRetry(this.registry);
 
         // Create tool loader with appropriate directories
         const directories: string[] = [];

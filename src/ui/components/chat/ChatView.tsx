@@ -2,7 +2,6 @@ import React from 'react';
 import { Box } from 'ink';
 import { useSnapshot } from 'valtio';
 import { store } from '../../../store';
-import { ChatIndicator } from '../chat-indicator';
 import { CommandSuggestions } from '../command-suggestions';
 import { ModelSelection } from '../model-selection';
 import { ChatInput } from './ChatInput';
@@ -58,7 +57,6 @@ export const ChatView: React.FC = () => {
 
       {!confirmationOptions && (
         <>
-          <ChatIndicator />
           <ChatInput />
           <StatusBar />
           <CommandSuggestions />

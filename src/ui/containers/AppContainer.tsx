@@ -80,6 +80,7 @@ export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent 
             actions.setTheme(settings.theme);
             actions.setAutoEdit(settings.autoEditEnabled);
             actions.setVSCodeOpen(settings.vsCodeOpenEnabled);
+            actions.setDangerousBypassPermission(settings.dangerousBypassPermission);
             actions.updateConfirmationSettings(settings.confirmationSettings);
             
             console.log('Agent created successfully');

@@ -6,12 +6,14 @@ import {
     FormInput, 
     FormToggle, 
     FormButton, 
-    SelectOption 
+    SelectOption,
+    useForm 
 } from '../components/form';
 import { getCommandRegistry } from '../../commands/registry';
 import { ArgumentDefinition } from '../../commands/types';
 import { actions, store } from '../../store';
 import { useSnapshot } from 'valtio';
+import { StageType } from '../stage/types';
 
 export const CommandPaletteScreen: React.FC = () => {
     const registry = getCommandRegistry();
@@ -45,16 +47,19 @@ export const CommandPaletteScreen: React.FC = () => {
             }
         }
         
-        // Execute command
-        await commandDef.exec(args);
-        
         // Clear the "/" from input if it's there
         if (snap.inputValue === '/') {
             actions.setInputValue('');
         }
         
-        // Close the command palette
-        actions.popStage();
+        // Execute command first (it might need to know we're in command palette)
+        commandDef.exec(args);
+        
+        // Only pop if the command didn't replace the stage
+        const currentStage = actions.getCurrentStage();
+        if (currentStage.type === StageType.COMMAND_PALETTE) {
+            actions.popStage();
+        }
     };
     
     const handleCancel = () => {
@@ -111,11 +116,31 @@ const CommandFormContent: React.FC<{
 }> = ({ commandOptions, onCancel }) => {
     const registry = getCommandRegistry();
     const [selectedCommand, setSelectedCommand] = React.useState(commandOptions[0]?.value || '');
+    const { setValue } = useForm();
     
     const commandDef = useMemo(() => 
         selectedCommand ? registry.get(selectedCommand) : null,
         [selectedCommand, registry]
     );
+    
+    // Load settings values when settings command is selected
+    React.useEffect(() => {
+        if (selectedCommand === 'settings') {
+            // Load current settings from store
+            const currentSettings = {
+                model: store.model,
+                theme: store.theme,
+                autoEditEnabled: store.autoEditEnabled,
+                vsCodeOpenEnabled: store.vsCodeOpenEnabled,
+                dangerousBypassPermission: store.dangerousBypassPermission
+            };
+            
+            // Set form values
+            Object.entries(currentSettings).forEach(([key, value]) => {
+                setValue(key, value);
+            });
+        }
+    }, [selectedCommand, setValue]);
     
     const renderArgument = (arg: ArgumentDefinition, index: number) => {
         const row = index + 1; // First row is for command selection

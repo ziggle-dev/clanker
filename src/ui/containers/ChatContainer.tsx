@@ -9,7 +9,6 @@ import {ChatInput} from "../components/chat/ChatInput";
 import {StatusBar} from "../components/chat/StatusBar";
 import {LoadingAndStatus} from "../components/chat/LoadingAndStatus";
 import {ModelSelection} from "../components/model-selection";
-import ConfirmationDialog from "../components/confirmation-dialog";
 import {ConfirmationService} from "../../utils/confirmation-service";
 import {useInputHandler} from "../../hooks/useInputHandler";
 import {useConfirmationHandler} from "../../hooks/useConfirmationHandler";
@@ -135,24 +134,27 @@ export function ChatContainer({agent}: ChatContainerProps) {
 
     return (
         <ChatLayout>
-            <Box paddingX={2}>
-                {showCommandSuggestions && <CommandSuggestions/>}
-                {showModelSelection && <ModelSelection/>}
-                <ChatHistory messageRegistry={messageRegistry} executionRegistry={executionRegistry}
-                             toolRegistry={toolRegistry}/>
-                <LoadingAndStatus/>
+            <Box flexDirection="column" height="100%" overflow="hidden">
+                <Box flexDirection="column" flexGrow={1} overflow="hidden">
+                    <Box paddingX={2} flexShrink={0}>
+                        {showCommandSuggestions && <CommandSuggestions/>}
+                        {showModelSelection && <ModelSelection/>}
+                    </Box>
+                    <Box paddingX={2} flexGrow={1} overflow="hidden" height="100%">
+                        <ChatHistory messageRegistry={messageRegistry} executionRegistry={executionRegistry}
+                                     toolRegistry={toolRegistry}/>
+                    </Box>
+                </Box>
+                <Box flexDirection="column" flexShrink={0}>
+                    <Box paddingX={2}>
+                        <LoadingAndStatus/>
+                    </Box>
+                    <ChatInput/>
+                    <Box paddingX={2}>
+                        <StatusBar/>
+                    </Box>
+                </Box>
             </Box>
-            <ChatInput/>
-            <Box paddingX={2}>
-                <StatusBar/>
-            </Box>
-            {snap.confirmationOptions && (
-                <ConfirmationDialog
-                    {...snap.confirmationOptions}
-                    onConfirm={handleConfirmation}
-                    onReject={handleRejection}
-                />
-            )}
         </ChatLayout>
     );
 }

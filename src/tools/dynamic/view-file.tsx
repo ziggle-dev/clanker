@@ -11,6 +11,10 @@ import {CodeBlock} from '../../ui/components/code-block';
 import {fileTrackerActions} from '../../store/store';
 
 const maxAllowedLines = 100;
+// Maximum content size in tokens (rough estimate: 1 token ≈ 4 characters)
+const MAX_TOKENS = 25000;
+const CHARS_PER_TOKEN = 4;
+const MAX_CHARS = MAX_TOKENS * CHARS_PER_TOKEN; // 100,000 characters
 
 /**
  * View file tool - reads files and lists directories
@@ -18,7 +22,7 @@ const maxAllowedLines = 100;
 const viewFileTool = createTool()
     .id('view_file')
     .name('View File or Directory')
-    .description('View contents of a file or list directory contents')
+    .description(`View contents of a file or list directory contents (max ${MAX_TOKENS.toLocaleString()} tokens)`)
     .category(ToolCategory.FileSystem)
     .capabilities(ToolCapability.FileRead)
     .tags('file', 'read', 'view', 'directory', 'list')
@@ -37,7 +41,7 @@ const viewFileTool = createTool()
     // Examples
     .examples([
         {
-            description: `View entire file (up to ${maxAllowedLines} lines)`,
+            description: `View entire file (up to ${maxAllowedLines} lines and ${MAX_TOKENS.toLocaleString()} tokens)`,
             arguments: {path: "src/index.ts"},
             result: "Shows the file content with syntax highlighting"
         },
@@ -127,6 +131,18 @@ const viewFileTool = createTool()
 
                 // Extract and format the selected lines
                 const selectedLines = lines.slice(startIdx, endIdx);
+                const selectedContent = selectedLines.join('\n');
+                const estimatedTokens = Math.ceil(selectedContent.length / CHARS_PER_TOKEN);
+                
+                // Check if selected content exceeds token limit
+                if (selectedContent.length > MAX_CHARS) {
+                    context.logger?.error(`Selected content too large: ${estimatedTokens} tokens`);
+                    return {
+                        success: false,
+                        error: `Selected content too large: ${estimatedTokens.toLocaleString()} tokens (max: ${MAX_TOKENS.toLocaleString()} tokens). Please use a smaller line range. Requested lines ${startIdx + 1}-${endIdx} would return ${selectedLines.length} lines.`
+                    };
+                }
+                
                 const formatted = selectedLines
                     .map((line, idx) => `${startIdx + idx + 1}: ${line}`)
                     .join('\n');
@@ -139,10 +155,12 @@ const viewFileTool = createTool()
                     rangeInfo = ` (showing first ${maxAllowedLines} of ${totalLines} lines)`;
                 }
 
-                context.logger?.info(`Read file: ${filePath}${rangeInfo}`);
+                context.logger?.info(`Read file: ${filePath}${rangeInfo} (~${estimatedTokens} tokens)`);
                 
-                // Update file tracker with full content
-                fileTrackerActions.updateFile(filePath, content);
+                // Update file tracker with full content only if it's not too large
+                if (content.length <= MAX_CHARS) {
+                    fileTrackerActions.updateFile(filePath, content);
+                }
 
                 return {
                     success: true,
@@ -153,7 +171,8 @@ const viewFileTool = createTool()
                         displayedLines: selectedLines.length,
                         startLine: startIdx + 1,
                         endLine: endIdx,
-                        truncated: endIdx < totalLines
+                        truncated: endIdx < totalLines,
+                        estimatedTokens
                     }
                 };
             }

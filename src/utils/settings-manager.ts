@@ -48,6 +48,7 @@ export const SettingsSchema = z.object({
     theme: z.enum(['light', 'dark', 'auto']).default('auto'),
     autoEditEnabled: z.boolean().default(false),
     vsCodeOpenEnabled: z.boolean().default(false),
+    dangerousBypassPermission: z.boolean().default(false),
     confirmationSettings: z.object({
         alwaysEdit: z.boolean().default(false),
         alwaysBash: z.boolean().default(false),

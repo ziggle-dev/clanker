@@ -446,10 +446,21 @@ export const actions = {
     
     async loadSettings() {
         try {
-            // This would typically load from a file or localStorage
-            // For now, just use defaults
-            const savedSettings = {};
-            Object.assign(store, savedSettings);
+            const { SettingsManager } = await import('../utils/settings-manager');
+            const settingsManager = SettingsManager.getInstance();
+            const { settings, isValid } = settingsManager.loadSettings();
+            
+            if (isValid && settings) {
+                // Update store with loaded settings
+                if (settings.model) store.model = settings.model;
+                if (settings.theme) store.theme = settings.theme;
+                if (settings.autoEditEnabled !== undefined) store.autoEditEnabled = settings.autoEditEnabled;
+                if (settings.vsCodeOpenEnabled !== undefined) store.vsCodeOpenEnabled = settings.vsCodeOpenEnabled;
+                if (settings.dangerousBypassPermission !== undefined) store.dangerousBypassPermission = settings.dangerousBypassPermission;
+                if (settings.confirmationSettings) {
+                    Object.assign(store.confirmationSettings, settings.confirmationSettings);
+                }
+            }
         } catch (error) {
             debug.error('Failed to load settings:', error);
         }

@@ -7,7 +7,7 @@ import {store} from "../../../store";
  * ChatInput component - displays the current input with a cursor
  * Uses Valtio store directly - no props needed
  */
-export const ChatInput: React.FC = () => {
+export const ChatInput: React.FC = React.memo(() => {
     // Get state values - Valtio handles reactivity automatically
     const snap = useSnapshot(store);
     const inputValue = snap.inputValue;
@@ -34,4 +34,4 @@ export const ChatInput: React.FC = () => {
             </Text>
         </Box>
     );
-}
+})

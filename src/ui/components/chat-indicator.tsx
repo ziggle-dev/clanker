@@ -7,7 +7,7 @@ import {store} from "../../store";
 /**
  * ChatProgress component - shows animated dots pattern responsive to token counts
  */
-export const ChatProgress: React.FC<{ elapsedSeconds: number }> = ({elapsedSeconds}) => {
+export const ChatProgress: React.FC<{ elapsedSeconds: number }> = React.memo(({elapsedSeconds}) => {
     // Get state using Valtio's useSnapshot
     const snap = useSnapshot(store);
 
@@ -180,4 +180,4 @@ export const ChatProgress: React.FC<{ elapsedSeconds: number }> = ({elapsedSecon
             )}
         </Box>
     );
-};
+});

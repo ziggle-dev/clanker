@@ -3,6 +3,8 @@
  * Provides unified search functionality for text and files
  */
 
+import React from 'react';
+import { Box, Text } from 'ink';
 import {RipgrepSearch} from '../../utils/ripgrep-search';
 import {createTool, ToolCategory, ToolCapability, validators, ExtractToolArgs} from '../../registry';
 import * as path from 'path';
@@ -149,6 +151,36 @@ const searchTool = createTool()
             };
         }
     })
+    
+    .renderResult(({ isExecuting, result, arguments: args }) => {
+        if (isExecuting) {
+            return <Text color="cyan">⎿ Searching for "{(args as any).query}"...</Text>;
+        }
+        
+        if (!result?.success) {
+            return <Text color="red">⎿ {result?.error || 'Search failed'}</Text>;
+        }
+        
+        const data = result.data as any;
+        const matchCount = data?.results?.length || 0;
+        
+        if (matchCount === 0) {
+            return <Text color="gray">⎿ No matches found</Text>;
+        }
+        
+        return (
+            <Box flexDirection="column" marginLeft={2}>
+                <Text color="gray">⎿ Found {matchCount} match{matchCount === 1 ? '' : 'es'}</Text>
+                {data.results.slice(0, 5).map((match: any, i: number) => (
+                    <Text key={i} color="cyan">⎿ {match.file}{match.line_number ? `:${match.line_number}` : ''}</Text>
+                ))}
+                {matchCount > 5 && (
+                    <Text color="gray" italic>⎿ ... and {matchCount - 5} more</Text>
+                )}
+            </Box>
+        );
+    })
+    
     .build();
 
 export default searchTool;

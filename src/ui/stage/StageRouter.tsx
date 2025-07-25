@@ -9,8 +9,10 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { HelpScreen } from '../screens/HelpScreen';
 import { ModalScreen } from '../screens/ModalScreen';
 import { ExitConfirmationModal } from '../screens/ExitConfirmationModal';
+import { ToolConfirmationScreen } from '../screens/ToolConfirmationScreen';
 import { GrokAgent } from '../../clanker/agent';
 import { StatusBar } from '../components/chat/StatusBar';
+import { SettingsManager } from '../../utils/settings-manager';
 
 interface StageRouterProps {
     agent: GrokAgent;
@@ -48,7 +50,19 @@ export const StageRouter: React.FC<StageRouterProps> = ({ agent }) => {
             case StageType.SETTINGS:
                 return <SettingsScreen 
                     onComplete={(settings) => {
-                        // Handle settings update
+                        // Save settings to store
+                        actions.setModel(settings.model);
+                        actions.setTheme(settings.theme);
+                        actions.setAutoEdit(settings.autoEditEnabled);
+                        actions.setVSCodeOpen(settings.vsCodeOpenEnabled);
+                        actions.setDangerousBypassPermission(settings.dangerousBypassPermission);
+                        actions.updateConfirmationSettings(settings.confirmationSettings);
+                        
+                        // Save to file
+                        const settingsManager = SettingsManager.getInstance();
+                        settingsManager.saveSettings(settings);
+                        
+                        // Close the settings screen
                         actions.popStage();
                     }}
                     onCancel={() => actions.popStage()}
@@ -63,19 +77,26 @@ export const StageRouter: React.FC<StageRouterProps> = ({ agent }) => {
             case StageType.EXIT_CONFIRMATION:
                 return <ExitConfirmationModal />;
                 
+            case StageType.TOOL_CONFIRMATION:
+                return <ToolConfirmationScreen 
+                    options={currentStage.props.options}
+                    onConfirm={currentStage.props.onConfirm}
+                    onReject={currentStage.props.onReject}
+                />;
+                
             default:
                 return <ChatContainer agent={agent} />;
         }
     };
     
     return (
-        <Box width="100%" height="100%" flexDirection="column">
-            <Box flexGrow={1}>
+        <Box width="100%" height="100%" flexDirection="column" overflow="hidden">
+            <Box flexGrow={1} overflow="hidden">
                 {renderStage()}
             </Box>
             {/* Show status bar on all screens except chat (which has its own) */}
             {currentStage.type !== StageType.CHAT && (
-                <Box>
+                <Box flexShrink={0}>
                     <StatusBar />
                 </Box>
             )}
