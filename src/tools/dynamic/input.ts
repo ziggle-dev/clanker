@@ -264,4 +264,4 @@ async function showTerminalInput(prompt: string, defaultValue?: string, password
 }
 
 // Export the tool
-export default [inputTool];
+export default inputTool;

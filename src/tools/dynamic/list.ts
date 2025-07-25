@@ -1,41 +1,28 @@
-import { createTool } from '../registry/builder';
-import { ToolCategory } from '../registry/types';
+/**
+ * List directory contents tool
+ */
+
+import { createTool, ToolCategory, ExtractToolArgs } from '../../registry';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
 /**
- * PWD (Print Working Directory) tool
+ * Format file size in human-readable format
  */
-export const pwdTool = createTool()
-    .id('pwd')
-    .name('Print Working Directory')
-    .description('Get the current working directory path')
-    .category(ToolCategory.FileSystem)
-    .tags('filesystem', 'navigation', 'directory', 'pwd')
+function formatFileSize(bytes: number): string {
+    if (bytes === 0) return '0 B';
     
-    .examples([
-        {
-            description: "Get current working directory",
-            arguments: {},
-            result: "/Users/username/projects/my-app"
-        }
-    ])
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const k = 1024;
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
     
-    .execute(async (args, context) => {
-        const cwd = process.cwd();
-        
-        return {
-            success: true,
-            output: cwd,
-            data: { path: cwd }
-        };
-    })
-    .build();
+    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${units[i]}`;
+}
 
 /**
  * List directory contents tool
  */
-export const listTool = createTool()
+const listTool = createTool()
     .id('list')
     .name('List Directory Contents')
     .description('List files and directories in a given path (defaults to current directory)')
@@ -155,18 +142,7 @@ export const listTool = createTool()
     })
     .build();
 
-/**
- * Format file size in human-readable format
- */
-function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 B';
-    
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const k = 1024;
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return `${(bytes / Math.pow(k, i)).toFixed(1)} ${units[i]}`;
-}
+export default listTool;
 
-// Export tools
-export default [pwdTool, listTool];
+// Export type
+export type ListToolArgs = ExtractToolArgs<typeof listTool>;

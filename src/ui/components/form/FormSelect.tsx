@@ -44,9 +44,10 @@ export const FormSelect: React.FC<FormSelectProps> = ({
             validation
         });
 
-        // Set initial value if not set
-        if (!values[name] && options.length > 0) {
-            setValue(name, options[0].value);
+        // Set initial value if not set (only on mount)
+        if (values[name] === undefined && options.length > 0) {
+            // Use setTimeout to avoid setting state during render
+            setTimeout(() => setValue(name, options[0].value), 0);
         }
 
         return () => {

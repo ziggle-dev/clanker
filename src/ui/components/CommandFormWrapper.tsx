@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Text, useInput } from 'ink';
 import { 
     Form, 
@@ -21,14 +21,24 @@ interface CommandFormProps {
 const CommandFormInner: React.FC<{
     commandOptions: SelectOption[];
     onCancel: () => void;
-}> = ({ commandOptions, onCancel }) => {
+}> = React.memo(({ commandOptions, onCancel }) => {
     const registry = getCommandRegistry();
     const { values } = useForm();
-    const selectedCommand = values.command || '';
+    const [selectedCommand, setSelectedCommand] = useState('');
     
-    const commandDef = selectedCommand ? registry.get(selectedCommand) : null;
+    // Update selected command when form value changes
+    useEffect(() => {
+        if (values.command !== selectedCommand) {
+            setSelectedCommand(values.command || '');
+        }
+    }, [values.command]);
     
-    const renderArgument = (arg: ArgumentDefinition, index: number) => {
+    const commandDef = useMemo(() => 
+        selectedCommand ? registry.get(selectedCommand) : null,
+        [selectedCommand]
+    );
+    
+    const renderArgument = useMemo(() => (arg: ArgumentDefinition, index: number) => {
         const row = index + 1; // First row is for command selection
         
         switch (arg.type) {
@@ -73,7 +83,7 @@ const CommandFormInner: React.FC<{
             default:
                 return null;
         }
-    };
+    }, []);
     
     return (
         <>
@@ -85,7 +95,10 @@ const CommandFormInner: React.FC<{
                 column={0}
             />
             
-            {commandDef?.arguments?.map((arg, index) => renderArgument(arg, index))}
+            {useMemo(() => 
+                commandDef?.arguments?.map((arg, index) => renderArgument(arg, index)),
+                [commandDef]
+            )}
             
             <Box 
                 flexDirection="row" 
@@ -113,16 +126,19 @@ const CommandFormInner: React.FC<{
             </Box>
         </>
     );
-};
+});
 
 export const CommandForm: React.FC<CommandFormProps> = ({ onCancel, onExecute }) => {
     const registry = getCommandRegistry();
     
     // Get command options for the select
-    const commandOptions: SelectOption[] = registry.list().map(cmd => ({
-        value: cmd.name,
-        label: `${cmd.name} - ${cmd.description}`
-    }));
+    const commandOptions: SelectOption[] = useMemo(() => 
+        registry.list().map(cmd => ({
+            value: cmd.name,
+            label: `${cmd.name} - ${cmd.description}`
+        })),
+        [registry]
+    );
     
     // Handle escape key
     useInput((input, key) => {
