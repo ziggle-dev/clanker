@@ -13,7 +13,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup && node create-standalone-tools.cjs",
+    "build": "tsup",
     "dev": "node --import tsx src/index.ts",
     "test:registry": "tsx src/test-registry.ts",
     "start": "node dist/index.js",

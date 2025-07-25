@@ -9,6 +9,7 @@ import * as os from 'os';
 import { fileURLToPath, pathToFileURL } from 'url';
 import {ToolDefinition, ToolRegistry} from './types';
 import { debug } from '../utils/debug-logger';
+import { builtInTools } from './builtin-tools';
 
 /**
  * Options for loading tools
@@ -95,25 +96,20 @@ export class ToolLoader {
      */
     private async loadBuiltinTools(): Promise<void> {
         try {
-            // Get the built-in tools directory relative to this file
-            const __filename = fileURLToPath(import.meta.url);
-            const __dirname = path.dirname(__filename);
+            debug.log(`[ToolLoader] Loading ${builtInTools.length} built-in tools`);
             
-            // In development, we're in src/registry, tools are in src/tools/dynamic
-            // In production, we're in dist/registry, tools are in dist/tools/dynamic
-            const possibleDirs = [
-                path.resolve(__dirname, '..', 'tools', 'dynamic'),
-                path.resolve(__dirname, '..', '..', 'src', 'tools', 'dynamic'),
-                path.resolve(__dirname, '..', '..', 'dist', 'tools', 'dynamic')
-            ];
-            
-            for (const dir of possibleDirs) {
-                if (await this.exists(dir)) {
-                    debug.log(`[ToolLoader] Loading built-in tools from: ${dir}`);
-                    await this.loadFromDirectory(dir);
-                    break;
+            // Register all built-in tools directly
+            for (const tool of builtInTools) {
+                if (this.isValidTool(tool)) {
+                    this.registry.register(tool);
+                    this.loadedTools.set(tool.id, `builtin:${tool.id}`);
+                    debug.log(`[ToolLoader] Loaded built-in tool: ${tool.id}`);
+                } else {
+                    debug.warn(`[ToolLoader] Invalid built-in tool: ${tool.id}`);
                 }
             }
+            
+            debug.log(`[ToolLoader] Successfully loaded ${builtInTools.length} built-in tools`);
         } catch (error) {
             debug.warn('[ToolLoader] Failed to load built-in tools:', error);
         }
