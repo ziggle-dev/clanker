@@ -1,5 +1,4 @@
 import React, {useCallback, useEffect, useRef} from "react";
-import {useApp} from "ink";
 import {useInput} from "ink";
 import {useSnapshot} from "valtio";
 import {GrokAgent} from "../../clanker/agent";
@@ -57,28 +56,14 @@ export function ChatContainer({agent}: ChatContainerProps) {
         confirmationOptions: snap.confirmationOptions,
     });
 
-    // App and confirmation service
-    const {exit} = useApp();
+    // Confirmation service
     const confirmationService = ConfirmationService.getInstance();
 
     // Handle Ctrl+C
     const handleCtrlC = useCallback(() => {
-        const now = Date.now();
-
-        if (snap.exitConfirmation && snap.exitConfirmationTime && (now - snap.exitConfirmationTime) < 3000) {
-            // Second Ctrl+C within 3 seconds - exit
-            exit();
-            setTimeout(() => process.exit(0), 100);
-        } else {
-            // First Ctrl+C or after timeout
-            // Clear input when Ctrl+C is pressed
-            if (snap.inputValue.trim()) {
-                actions.setInputValue("");
-            }
-            actions.setExitConfirmation(true);
-            setTimeout(() => actions.setExitConfirmation(false), 3000);
-        }
-    }, [snap.exitConfirmation, snap.exitConfirmationTime, snap.inputValue, exit]);
+        // Show exit confirmation modal
+        actions.pushStage({ id: 'exit-confirmation', type: StageType.EXIT_CONFIRMATION });
+    }, []);
 
     // Toggle auto-edit
     const toggleAutoEdit = useCallback(() => {
@@ -94,10 +79,11 @@ export function ChatContainer({agent}: ChatContainerProps) {
         if (snap.confirmationOptions) return;
 
         // Check for Ctrl+C (ETX character, code 3)
-        if (inputChar.charCodeAt(0) === 3) {
+        if (inputChar.charCodeAt(0) === 3 || (key.ctrl && inputChar === 'c')) {
             handleCtrlC();
             return;
         }
+
 
         // Shift+Tab: Toggle auto-edit
         if (key.shift && key.tab) {

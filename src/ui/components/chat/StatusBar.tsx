@@ -10,30 +10,21 @@ export const StatusBar: React.FC = () => {
   const snap = useSnapshot(store);
   const autoEditEnabled = snap.autoEditEnabled;
   const dbpEnabled = snap.dangerousBypassPermission;
-  const showExitConfirmation = snap.exitConfirmation;
   
   return (
     <Box width="100%">
-      {showExitConfirmation ? (
-        <Text color="yellow" bold>
-          Press Ctrl-C again to exit
-        </Text>
-      ) : (
+      <Text color="cyan">
+        {autoEditEnabled ? "▶" : "⏸"} auto-edit:{" "}
+        {autoEditEnabled ? "on" : "off"}
+      </Text>
+      {dbpEnabled && (
         <>
-          <Text color="cyan">
-            {autoEditEnabled ? "▶" : "⏸"} auto-edit:{" "}
-            {autoEditEnabled ? "on" : "off"}
-          </Text>
-          {dbpEnabled && (
-            <>
-              <Text color="gray"> • </Text>
-              <Text color="red" bold>⚠️  DBP: ON</Text>
-            </>
-          )}
           <Text color="gray"> • </Text>
-          <Text color="gray">Ctrl+C to exit</Text>
+          <Text color="red" bold>⚠️  DBP: ON</Text>
         </>
       )}
+      <Text color="gray"> • </Text>
+      <Text color="gray">Ctrl+C to exit</Text>
     </Box>
   );
 };

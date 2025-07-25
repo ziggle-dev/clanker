@@ -252,6 +252,29 @@ program
                 process.exit(1);
             }
 
+            // Handle SIGINT (Ctrl+C) to prevent default termination
+            // Import store actions for proper integration
+            const { actions, store } = await import("./store");
+            
+            process.on('SIGINT', () => {
+                // Use the store to manage exit confirmation state
+                const state = store;
+                const now = Date.now();
+                
+                if (state.exitConfirmation && state.exitConfirmationTime && (now - state.exitConfirmationTime) < 3000) {
+                    // Second Ctrl+C within 3 seconds - exit
+                    process.exit(0);
+                } else {
+                    // First Ctrl+C or after timeout
+                    // Clear input when Ctrl+C is pressed
+                    if (state.inputValue.trim()) {
+                        actions.setInputValue("");
+                    }
+                    actions.setExitConfirmation(true);
+                    setTimeout(() => actions.setExitConfirmation(false), 3000);
+                }
+            });
+
             // Check if we have settings or need to show settings screen
             const {SettingsManager, ProviderModels} = await import("./utils/settings-manager");
             const settingsManager = SettingsManager.getInstance();
@@ -285,7 +308,12 @@ program
             
             // Always render AppContainer - it will handle showing settings if needed
             const {AppContainer} = await import("./ui/containers/AppContainer");
-            render(React.createElement(AppContainer, {agent}));
+            const app = render(React.createElement(AppContainer, {agent}));
+            
+            // Ensure we exit cleanly on unmount
+            app.waitUntilExit().then(() => {
+                process.exit(0);
+            });
         } catch (error) {
             console.error("❌ Error initializing Grok CLI:", error instanceof Error ? error.message : String(error));
             process.exit(1);
