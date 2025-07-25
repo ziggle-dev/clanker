@@ -27,6 +27,7 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
     const isActive = snap.isProcessing || snap.isStreaming || hasExecutingTools;
 
     const [progressFrame, setProgressFrame] = useState(0);
+    const [idleFrame, setIdleFrame] = useState(0);
     const {stdout} = useStdout();
 
     // Terminal width for progress bar calculation
@@ -34,7 +35,7 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
     // Calculate available width
     const loadingTextWidth = 25; // spinner + loading text
     const marginWidth = 4; // margin between loading and progress
-    const tokenDisplayWidth = snap.tokenCount > 0 ? 15 : 0; // space for token count
+    const tokenDisplayWidth = (snap.inputTokenCount > 0 || snap.outputTokenCount > 0) ? 25 : 0; // space for token count
     const bracketsWidth = 2; // [ and ]
 
     const availableWidth = terminalWidth - loadingTextWidth - marginWidth - tokenDisplayWidth - bracketsWidth - 5;
@@ -47,34 +48,81 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
             return;
         }
 
-        // Adjust animation speed based on token count
-        const baseSpeed = 100;
-        const tokenFactor = Math.max(1, Math.log10(snap.tokenCount + 1));
+        // Adjust animation speed based on total token count
+        const totalTokens = snap.inputTokenCount + snap.outputTokenCount;
+        const baseSpeed = 50;
+        const tokenFactor = Math.max(1, Math.log10(totalTokens + 1));
         const animationSpeed = baseSpeed / tokenFactor;
 
         const progressInterval = setInterval(() => {
-            setProgressFrame((prev) => (prev + 1) % 360);
+            setProgressFrame((prev) => (prev + 1) % 720);
         }, animationSpeed);
 
         return () => clearInterval(progressInterval);
-    }, [isActive, snap.tokenCount]);
+    }, [isActive, snap.inputTokenCount, snap.outputTokenCount]);
+
+    // Idle animation for processing state
+    useEffect(() => {
+        if (!isActive) {
+            setIdleFrame(0);
+            return;
+        }
+
+        const idleInterval = setInterval(() => {
+            setIdleFrame((prev) => (prev + 1) % 360);
+        }, 30);
+
+        return () => clearInterval(idleInterval);
+    }, [isActive]);
 
     if (!isActive) return null;
 
-    // Create animated dots pattern
+    // Create animated dots pattern with bidirectional flow
     const createDotsPattern = () => {
         const dots = [];
         const dotCount = Math.min(maxBarWidth, 80);
+        const midPoint = dotCount / 2;
         
-        // Create wave effect based on token count
-        const waveAmplitude = Math.min(10, Math.log10(snap.tokenCount + 1) * 3);
-        const waveFrequency = 0.1;
-        const phaseShift = progressFrame * 0.02;
+        // Create different patterns based on token flow
+        const inputTokens = snap.inputTokenCount;
+        const outputTokens = snap.outputTokenCount;
+        const totalTokens = inputTokens + outputTokens;
+        
+        // Base idle animation
+        const idleWave = Math.sin(idleFrame * 0.02) * 0.5 + 0.5;
         
         for (let i = 0; i < dotCount; i++) {
             const position = i / dotCount;
-            const wave = Math.sin(position * Math.PI * 2 * waveFrequency + phaseShift) * waveAmplitude;
-            const intensity = Math.abs(wave) / waveAmplitude;
+            const distanceFromCenter = Math.abs(i - midPoint) / midPoint;
+            
+            // Create bidirectional wave effect
+            let intensity = 0;
+            let color = 'gray';
+            
+            if (outputTokens > 0 && i >= midPoint) {
+                // Right side - output tokens (flowing right)
+                const rightPosition = (i - midPoint) / midPoint;
+                const rightWave = Math.sin((rightPosition * Math.PI * 2 - progressFrame * 0.03) + Math.PI);
+                intensity = Math.max(0, rightWave) * (1 - rightPosition * 0.3);
+                color = 'cyan';
+            }
+            
+            if (inputTokens > 0 && i < midPoint) {
+                // Left side - input tokens (flowing left)
+                const leftPosition = (midPoint - i) / midPoint;
+                const leftWave = Math.sin((leftPosition * Math.PI * 2 + progressFrame * 0.03) + Math.PI);
+                const leftIntensity = Math.max(0, leftWave) * (1 - leftPosition * 0.3);
+                if (leftIntensity > intensity) {
+                    intensity = leftIntensity;
+                    color = 'green';
+                }
+            }
+            
+            // Add idle animation when no tokens
+            if (totalTokens === 0) {
+                intensity = idleWave * (1 - distanceFromCenter) * 0.6;
+                color = 'gray';
+            }
             
             // Different dot characters based on intensity
             let dotChar = '·';
@@ -88,11 +136,9 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
                 dotChar = '∙';
             }
             
-            // Color based on position and intensity
-            const isHighIntensity = intensity > 0.6;
             dots.push({
                 char: dotChar,
-                color: isHighIntensity ? 'cyan' : 'gray',
+                color: color,
                 dim: intensity < 0.3
             });
         }
@@ -118,12 +164,18 @@ export function ChatProgress({elapsedSeconds = 0}: { elapsedSeconds?: number }) 
                 </Text>
             ))}
             <Text color="gray">]</Text>
-            {snap.tokenCount > 0 && (
+            {(snap.inputTokenCount > 0 || snap.outputTokenCount > 0) && (
                 <>
                     <Text color="gray"> • </Text>
-                    <Text color="gray" dimColor>
-                        {snap.tokenCount} tokens
-                    </Text>
+                    {snap.inputTokenCount > 0 && (
+                        <>
+                            <Text color="green" dimColor>↑{snap.inputTokenCount}</Text>
+                            {snap.outputTokenCount > 0 && <Text color="gray"> </Text>}
+                        </>
+                    )}
+                    {snap.outputTokenCount > 0 && (
+                        <Text color="cyan" dimColor>↓{snap.outputTokenCount}</Text>
+                    )}
                 </>
             )}
             {elapsedSeconds > 0 && (

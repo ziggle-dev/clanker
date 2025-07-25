@@ -70,17 +70,21 @@ export function ChatContainer({agent}: ChatContainerProps) {
             exit();
             setTimeout(() => process.exit(0), 100);
         } else {
+            // Clear input when Ctrl+C is pressed
+            if (snap.inputValue.trim()) {
+                actions.setInputValue("");
+            }
             actions.setExitConfirmation(true);
             setTimeout(() => actions.setExitConfirmation(false), 3000);
         }
-    }, [snap.exitConfirmation, exit]);
+    }, [snap.exitConfirmation, snap.inputValue, exit]);
 
     // Toggle auto-edit
     const toggleAutoEdit = useCallback(() => {
         const newAutoEditState = !snap.autoEditEnabled;
         actions.setAutoEdit(newAutoEditState);
-        confirmationService.setSessionFlag("allOperations", newAutoEditState);
-    }, [snap.autoEditEnabled, confirmationService]);
+        // Don't set session flag anymore - auto-edit only affects file operations
+    }, [snap.autoEditEnabled]);
 
 
     // Handle keyboard input directly here

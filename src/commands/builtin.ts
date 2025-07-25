@@ -71,18 +71,20 @@ export function registerBuiltinCommands() {
     // Toggle commands
     registerCommand({
         name: 'toggle-auto-edit',
-        description: 'Toggle auto-edit mode',
+        description: 'Toggle auto-edit mode (file operations only)',
         category: 'Settings',
         arguments: [
             {
                 name: 'enabled',
                 type: 'boolean',
-                description: 'Enable auto-edit',
+                description: 'Enable auto-edit for file operations',
                 default: false
             }
         ],
         exec: (args) => {
             actions.setAutoEdit(args.enabled);
+            const status = args.enabled ? 'enabled' : 'disabled';
+            console.log(`Auto-edit is now ${status} for file operations`);
         }
     });
     
@@ -100,6 +102,26 @@ export function registerBuiltinCommands() {
         ],
         exec: (args) => {
             actions.setVSCodeOpen(args.enabled);
+        }
+    });
+    
+    // Dangerous bypass permission command
+    registerCommand({
+        name: 'dbp',
+        description: 'Toggle dangerously bypass permission',
+        category: 'Settings',
+        arguments: [
+            {
+                name: 'enabled',
+                type: 'boolean',
+                description: 'Enable dangerous bypass (skips ALL confirmations)',
+                default: false
+            }
+        ],
+        exec: (args) => {
+            actions.setDangerousBypassPermission(args.enabled);
+            const status = args.enabled ? 'ENABLED' : 'DISABLED';
+            console.log(`⚠️  Dangerously Bypass Permission is now ${status}`);
         }
     });
     

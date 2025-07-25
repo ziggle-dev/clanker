@@ -1,4 +1,5 @@
 import { EventEmitter } from "events";
+import { store } from "../store";
 
 export interface ConfirmationOptions {
   operation: string;
@@ -43,6 +44,16 @@ export class ConfirmationService extends EventEmitter {
     options: ConfirmationOptions,
     operationType: "file" | "bash" | "file_create" | "file_edit" = "file"
   ): Promise<ConfirmationResult> {
+    // Check if dangerously bypass permission is enabled
+    if (store.dangerousBypassPermission) {
+      return { confirmed: true };
+    }
+    
+    // Check if auto-edit is enabled for file operations only
+    if (store.autoEditEnabled && (operationType === "file_edit" || operationType === "file_create")) {
+      return { confirmed: true };
+    }
+    
     // Check session flags
     if (
       this.sessionFlags.allOperations ||

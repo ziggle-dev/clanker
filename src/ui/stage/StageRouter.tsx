@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box } from 'ink';
+import React, { useCallback } from 'react';
+import { Box, useApp, useInput } from 'ink';
 import { useSnapshot } from 'valtio';
 import { store, actions } from '../../store';
 import { StageType } from './types';
@@ -9,6 +9,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { HelpScreen } from '../screens/HelpScreen';
 import { ModalScreen } from '../screens/ModalScreen';
 import { GrokAgent } from '../../clanker/agent';
+import { StatusBar } from '../components/chat/StatusBar';
 
 interface StageRouterProps {
     agent: GrokAgent;

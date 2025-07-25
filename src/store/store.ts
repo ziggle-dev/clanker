@@ -37,6 +37,8 @@ export interface AppState {
     isProcessing: boolean;
     isStreaming: boolean;
     tokenCount: number;
+    inputTokenCount: number;
+    outputTokenCount: number;
     processingTime: number;
     inputValue: string;
     cursorPosition: number;
@@ -59,6 +61,7 @@ export interface AppState {
     // Settings slice
     autoEditEnabled: boolean;
     vsCodeOpenEnabled: boolean;
+    dangerousBypassPermission: boolean;
     confirmationSettings: {
         alwaysEdit: boolean;
         alwaysBash: boolean;
@@ -100,6 +103,8 @@ export const store = proxy<AppState>({
     isProcessing: false,
     isStreaming: false,
     tokenCount: 0,
+    inputTokenCount: 0,
+    outputTokenCount: 0,
     processingTime: 0,
     inputValue: '',
     cursorPosition: 0,
@@ -122,6 +127,7 @@ export const store = proxy<AppState>({
     // Settings slice
     autoEditEnabled: false,
     vsCodeOpenEnabled: false,
+    dangerousBypassPermission: false,
     confirmationSettings: {
         alwaysEdit: false,
         alwaysBash: false,
@@ -310,6 +316,16 @@ export const actions = {
     
     updateTokenCount(count: number) {
         store.tokenCount = count;
+        store.outputTokenCount = count;
+    },
+    
+    updateInputTokenCount(count: number) {
+        store.inputTokenCount = count;
+    },
+    
+    updateOutputTokenCount(count: number) {
+        store.outputTokenCount = count;
+        store.tokenCount = count;
     },
     
     updateProcessingTime(time: number) {
@@ -393,6 +409,11 @@ export const actions = {
         actions.saveSettings();
     },
     
+    setDangerousBypassPermission(enabled: boolean) {
+        store.dangerousBypassPermission = enabled;
+        actions.saveSettings();
+    },
+    
     updateConfirmationSettings(settings: Partial<AppState['confirmationSettings']>) {
         Object.assign(store.confirmationSettings, settings);
         actions.saveSettings();
@@ -434,6 +455,7 @@ export const actions = {
             const settingsToSave = {
                 autoEditEnabled: store.autoEditEnabled,
                 vsCodeOpenEnabled: store.vsCodeOpenEnabled,
+                dangerousBypassPermission: store.dangerousBypassPermission,
                 confirmationSettings: store.confirmationSettings,
                 theme: store.theme,
                 model: store.model,

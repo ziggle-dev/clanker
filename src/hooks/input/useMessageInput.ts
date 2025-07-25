@@ -5,6 +5,7 @@ import {GrokAgent} from '../../clanker/agent';
 import {messageRegistry as MessageRegistryType, MessageRegistryMessage} from '../../registry/messages';
 import {executionRegistry as ExecutionRegistryType} from '../../registry/execution';
 import {debug} from '../../utils/debug-logger';
+import {TokenCounter} from '../../utils/token-counter';
 
 interface UseMessageInputProps {
     agent: GrokAgent;
@@ -31,10 +32,17 @@ export const useMessageInput = ({
         async (content: string) => {
             if (!content.trim() || !agent) return;
 
-            messageRegistry.addMessage({
-                role: "user",
+            const userMessage = {
+                role: "user" as const,
                 content: content.trim(),
-            });
+            };
+            messageRegistry.addMessage(userMessage);
+
+            // Count input tokens
+            const tokenCounter = new TokenCounter(snap.model || 'grok-3-mini');
+            const inputTokens = tokenCounter.countTokens(userMessage.content);
+            actions.updateInputTokenCount(inputTokens);
+            tokenCounter.dispose();
 
             actions.setInputValue("");
             actions.setProcessing(true);

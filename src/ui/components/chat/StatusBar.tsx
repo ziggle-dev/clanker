@@ -9,6 +9,7 @@ import { store } from '../../../store';
 export const StatusBar: React.FC = () => {
   const snap = useSnapshot(store);
   const autoEditEnabled = snap.autoEditEnabled;
+  const dbpEnabled = snap.dangerousBypassPermission;
   const showExitConfirmation = snap.exitConfirmation;
   
   return (
@@ -23,6 +24,12 @@ export const StatusBar: React.FC = () => {
             {autoEditEnabled ? "▶" : "⏸"} auto-edit:{" "}
             {autoEditEnabled ? "on" : "off"}
           </Text>
+          {dbpEnabled && (
+            <>
+              <Text color="gray"> • </Text>
+              <Text color="red" bold>⚠️  DBP: ON</Text>
+            </>
+          )}
           <Text color="gray"> • </Text>
           <Text color="gray">Ctrl+C to exit</Text>
         </>
