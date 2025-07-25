@@ -39,16 +39,26 @@ export interface ToolManifest {
 export interface ToolRegistry {
   version: string;
   tools: ToolRegistryEntry[];
-  lastUpdated: string;
+  lastUpdated?: string;
+  updated?: string;
 }
 
 export interface ToolRegistryEntry {
   org: string;
   name: string;
   description: string;
-  latest: string;
+  latest?: string;
   downloads?: number;
   stars?: number;
+  // Additional fields from GitHub releases
+  id?: string;
+  version?: string;
+  author?: string;
+  repository?: string;
+  homepage?: string;
+  keywords?: string[];
+  created?: string;
+  updated?: string;
 }
 
 export interface PackageManagerOptions {

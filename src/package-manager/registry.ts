@@ -405,7 +405,7 @@ export class RegistryClient {
         return null;
       }
       
-      const release = await releaseResponse.json();
+      const release = await releaseResponse.json() as any;
       
       // Find tools.json asset
       const toolsAsset = release.assets?.find((asset: any) => 
@@ -425,7 +425,7 @@ export class RegistryClient {
         throw new Error(`Failed to download tools.json: ${toolsResponse.statusText}`);
       }
       
-      const toolsIndex = await toolsResponse.json();
+      const toolsIndex = await toolsResponse.json() as any;
       
       // Store release info for later use in downloadTool
       (this as any).currentRelease = release;

@@ -107,7 +107,8 @@ export class ToolLoader {
             // Register all built-in tools directly
             for (const tool of tools) {
                 if (this.isValidTool(tool)) {
-                    const registeredTool = this.registry.register(tool);
+                    this.registry.register(tool);
+                    const registeredTool = this.registry.get(tool.id);
                     if (registeredTool) {
                         registeredTool.hash = 'builtin';
                         registeredTool.filePath = `builtin:${tool.id}`;
@@ -242,7 +243,8 @@ export class ToolLoader {
             }
 
             // Register the tool with hash info
-            const registeredTool = this.registry.register(tool);
+            this.registry.register(tool);
+            const registeredTool = this.registry.get(tool.id);
             if (registeredTool) {
                 registeredTool.hash = fileHash;
                 registeredTool.filePath = filePath;
