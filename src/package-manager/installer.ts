@@ -15,24 +15,39 @@ import {
   InstallOptions,
   PackageManagerOptions
 } from './types';
+import { ExperimentalToolManager } from './experimental';
 
 export class ToolInstaller {
   private toolsDir: string;
   private registry: RegistryClient;
   private resolver: VersionResolver;
   private manifestPath: string;
+  private experimental: ExperimentalToolManager;
 
   constructor(options: PackageManagerOptions = {}) {
     this.toolsDir = options.toolsDir || path.join(process.env.HOME || '', '.clanker', 'tools');
     this.manifestPath = path.join(this.toolsDir, 'manifest.json');
     this.registry = new RegistryClient(options);
     this.resolver = new VersionResolver();
+    this.experimental = new ExperimentalToolManager(options);
   }
 
   /**
    * Install a tool
    */
   async install(toolSpec: string, options: InstallOptions = {}): Promise<void> {
+    // Check if this is an experimental tool installation
+    if (toolSpec.includes('@pr-') || toolSpec.includes('@') && !toolSpec.match(/@[\d.]+$/)) {
+      const isExperimental = await this.experimental.isEnabled();
+      if (isExperimental) {
+        await this.experimental.install(toolSpec);
+        return;
+      } else {
+        console.log('ℹ️  This appears to be an experimental tool. Use --enable-experimental first.');
+        return;
+      }
+    }
+    
     const tool = this.parseToolSpec(toolSpec);
     
     debug.log(`[Installer] Installing ${tool.org}/${tool.name}${tool.version ? '@' + tool.version : ''}`);

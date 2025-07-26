@@ -5,14 +5,17 @@
 import { ToolInstaller } from './installer';
 import { RegistryClient } from './registry';
 import { PackageManagerOptions, SearchOptions } from './types';
+import { ExperimentalToolManager } from './experimental';
 
 export class ClankerPackageManager {
   private installer: ToolInstaller;
   private registry: RegistryClient;
+  private experimental: ExperimentalToolManager;
 
   constructor(options: PackageManagerOptions = {}) {
     this.installer = new ToolInstaller(options);
     this.registry = new RegistryClient(options);
+    this.experimental = new ExperimentalToolManager(options);
   }
 
   /**
@@ -126,8 +129,122 @@ export class ClankerPackageManager {
     await this.registry.clearCache();
     console.log('✅ Cache cleared');
   }
+  
+  /**
+   * Enable experimental mode
+   */
+  async enableExperimental(): Promise<void> {
+    await this.experimental.enable();
+    console.log('🧪 Experimental mode enabled');
+    console.log('⚠️  Warning: Experimental tools have not been fully reviewed and may be unstable');
+  }
+  
+  /**
+   * List available experimental tools
+   */
+  async listExperimental(): Promise<void> {
+    const isEnabled = await this.experimental.isEnabled();
+    if (!isEnabled) {
+      console.log('ℹ️  Experimental mode is not enabled. Use --enable-experimental to enable.');
+      return;
+    }
+    
+    try {
+      const tools = await this.experimental.listAvailable();
+      
+      if (tools.length === 0) {
+        console.log('No experimental tools available.');
+        return;
+      }
+      
+      console.log(`\n🧪 Available experimental tools (${tools.length}):\n`);
+      
+      // Group by source
+      const branches = tools.filter(t => t.source === 'branch');
+      const prs = tools.filter(t => t.source === 'pr');
+      
+      if (branches.length > 0) {
+        console.log('From branches:');
+        for (const tool of branches) {
+          console.log(`  ${tool.org}/${tool.name}@${tool.version}`);
+          console.log(`    Branch: ${tool.sourceRef}`);
+        }
+        console.log();
+      }
+      
+      if (prs.length > 0) {
+        console.log('From pull requests:');
+        for (const tool of prs) {
+          console.log(`  ${tool.org}/${tool.name}@pr-${tool.sourceRef}`);
+          console.log(`    PR #${tool.sourceRef}`);
+        }
+      }
+      
+      console.log('\nℹ️  Install with: clanker --install org/tool@branch or org/tool@pr-123');
+      
+    } catch (error) {
+      console.error(`❌ Failed to list experimental tools: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  /**
+   * Install an experimental tool
+   */
+  async installExperimental(toolSpec: string): Promise<void> {
+    const isEnabled = await this.experimental.isEnabled();
+    if (!isEnabled) {
+      console.log('ℹ️  Experimental mode is not enabled. Use --enable-experimental to enable.');
+      return;
+    }
+    
+    try {
+      await this.experimental.install(toolSpec);
+    } catch (error) {
+      console.error(`❌ Failed to install experimental tool: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
+  }
+  
+  /**
+   * List installed experimental tools
+   */
+  async listInstalledExperimental(): Promise<void> {
+    try {
+      const tools = await this.experimental.listInstalled();
+      
+      if (tools.length === 0) {
+        console.log('No experimental tools installed.');
+        return;
+      }
+      
+      console.log(`\n🧪 Installed experimental tools (${tools.length}):\n`);
+      
+      for (const tool of tools) {
+        console.log(`${tool.org}/${tool.name}@${tool.version}`);
+        console.log(`  Source: ${tool.source === 'pr' ? `PR #${tool.sourceRef}` : `Branch ${tool.sourceRef}`}`);
+        console.log(`  Installed: ${new Date(tool.installedAt).toLocaleDateString()}`);
+        console.log();
+      }
+      
+    } catch (error) {
+      console.error(`❌ Failed to list experimental tools: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  
+  /**
+   * Upgrade experimental tools to stable versions
+   */
+  async upgradeExperimental(): Promise<void> {
+    try {
+      await this.experimental.upgradeToStable();
+    } catch (error) {
+      console.error(`❌ Failed to upgrade experimental tools: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
+    }
+  }
 }
 
 // Export main class and types
 export * from './types';
+export * from './experimental';
 export { ClankerPackageManager as PackageManager };

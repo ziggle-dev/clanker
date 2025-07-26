@@ -7,11 +7,39 @@ import * as fsSync from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import * as crypto from 'crypto';
-import { fileURLToPath, pathToFileURL } from 'url';
-import {ToolDefinition, ToolRegistry, RegisteredTool} from './types';
-import { debug } from '../utils/debug-logger';
-import { builtInTools } from './builtin-tools';
-import { loadBuiltInToolsFromManifest } from './manifest-loader';
+import {pathToFileURL} from 'url';
+import {ToolDefinition, ToolRegistry} from './types';
+import {debug} from '../utils/debug-logger';
+import {loadBuiltInToolsFromManifest} from './manifest-loader';
+
+/**
+ * Check if a module should be shared from the main clanker package
+ */
+function shouldShareDependency(request: string): boolean {
+    // Share React and Ink
+    if (request === 'react' || request === 'ink' || request.startsWith('ink/')) {
+        return true;
+    }
+
+    // Share @ziggler/clanker and its exports
+    if (request === '@ziggler/clanker' || request.startsWith('@ziggler/clanker/')) {
+        return true;
+    }
+
+    // Share relative imports that are part of clanker's internal structure
+    if (request.startsWith('../../registry') || request.startsWith('../../utils/') ||
+        request.startsWith('../../ui/') || request.startsWith('../../store/')) {
+        return true;
+    }
+
+    // Share other common dependencies that tools might need
+    const sharedDeps = [
+        'chalk', 'fs-extra', 'zod', 'commander', 'dotenv',
+        'openai', 'axios', 'uuid', 'prismjs', 'immer'
+    ];
+
+    return sharedDeps.includes(request);
+}
 
 /**
  * Options for loading tools
@@ -39,7 +67,7 @@ export interface LoaderOptions {
      * Whether to watch for changes
      */
     watch?: boolean;
-    
+
     /**
      * Whether to load built-in tools
      * Defaults to true
@@ -60,7 +88,7 @@ export class ToolLoader {
         // Get user home directory in a cross-platform way
         const homeDir = os.homedir();
         const clankDir = path.join(homeDir, '.clanker');
-        
+
         this.options = {
             directories: options.directories || [process.cwd(), clankDir],
             recursive: options.recursive ?? true,
@@ -68,7 +96,7 @@ export class ToolLoader {
             watch: options.watch ?? false,
             loadBuiltins: options.loadBuiltins ?? true
         };
-        
+
         debug.log(`[ToolLoader] Configured directories:`, this.options.directories);
     }
 
@@ -101,9 +129,9 @@ export class ToolLoader {
         try {
             // Try to load from manifest first, fall back to static imports
             const tools = await loadBuiltInToolsFromManifest();
-            
+
             debug.log(`[ToolLoader] Loading ${tools.length} built-in tools`);
-            
+
             // Register all built-in tools directly
             for (const tool of tools) {
                 if (this.isValidTool(tool)) {
@@ -113,13 +141,13 @@ export class ToolLoader {
                         registeredTool.hash = 'builtin';
                         registeredTool.filePath = `builtin:${tool.id}`;
                     }
-                    this.loadedTools.set(tool.id, { path: `builtin:${tool.id}`, hash: 'builtin' });
+                    this.loadedTools.set(tool.id, {path: `builtin:${tool.id}`, hash: 'builtin'});
                     debug.log(`[ToolLoader] Loaded built-in tool: ${tool.id}`);
                 } else {
                     debug.warn(`[ToolLoader] Invalid built-in tool`);
                 }
             }
-            
+
             debug.log(`[ToolLoader] Successfully loaded ${tools.length} built-in tools`);
         } catch (error) {
             debug.warn('[ToolLoader] Failed to load built-in tools:', error);
@@ -149,9 +177,9 @@ export class ToolLoader {
      */
     private async scanDirectory(directory: string, recursive: boolean): Promise<void> {
         let entries: fsSync.Dirent[];
-        
+
         try {
-            entries = await fs.readdir(directory, { withFileTypes: true });
+            entries = await fs.readdir(directory, {withFileTypes: true});
         } catch (error) {
             // Directory not accessible, skip silently
             return;
@@ -197,32 +225,33 @@ export class ToolLoader {
     private async loadToolFile(filePath: string): Promise<void> {
         try {
             debug.log(`[ToolLoader] Attempting to load: ${filePath}`);
-            
+
             // Compute file hash
             const fileHash = await this.computeFileHash(filePath);
             debug.log(`[ToolLoader] File hash for ${filePath}: ${fileHash.substring(0, 8)}...`);
-            
+
             // Check if tool is already loaded with same hash
             const existingEntry = Array.from(this.loadedTools.entries())
+                // eslint-disable-next-line @typescript-eslint/no-unused-vars
                 .find(([_, info]) => info.path === filePath);
-            
+
             if (existingEntry && existingEntry[1].hash === fileHash) {
                 debug.log(`[ToolLoader] Tool already loaded with same version: ${existingEntry[0]}`);
                 return;
             }
-            
+
             // Dynamic import
             const moduleExports = await this.importModule(filePath);
             debug.log(`[ToolLoader] Module exports for ${filePath}:`, Object.keys(moduleExports));
-            
-            const tool = await this.extractTool(moduleExports);
+
+            const tool = await this.extractTool(moduleExports);d
 
             if (!tool) {
                 debug.warn(`[ToolLoader] No valid tool found in ${filePath}`);
                 return;
             }
 
-            debug.log(`[ToolLoader] Extracted tool:`, { id: tool.id, name: tool.name });
+            debug.log(`[ToolLoader] Extracted tool:`, {id: tool.id, name: tool.name});
 
             // Validate tool
             if (!this.isValidTool(tool)) {
@@ -249,8 +278,8 @@ export class ToolLoader {
                 registeredTool.hash = fileHash;
                 registeredTool.filePath = filePath;
             }
-            
-            this.loadedTools.set(tool.id, { path: filePath, hash: fileHash });
+
+            this.loadedTools.set(tool.id, {path: filePath, hash: fileHash});
 
             debug.log(`[ToolLoader] Loaded tool: ${tool.id} from ${filePath}`);
         } catch (error) {
@@ -267,33 +296,33 @@ export class ToolLoader {
             if (filePath.endsWith('.js')) {
                 // First try createRequire which works in ESM context
                 try {
-                    const { createRequire } = await import('module');
+                    const {createRequire} = await import('module');
                     // Use process.cwd() as fallback if import.meta.url is not available
-                    const baseUrl = typeof import.meta !== 'undefined' && import.meta.url 
-                        ? import.meta.url 
+                    const baseUrl = typeof import.meta !== 'undefined' && import.meta.url
+                        ? import.meta.url
                         : pathToFileURL(process.cwd() + '/').href;
                     const require = createRequire(baseUrl);
-                    // Clear cache to ensure fresh load
-                    delete require.cache[filePath];
-                    const module = require(filePath);
-                    debug.log(`[ToolLoader] Loaded ${filePath} using createRequire`);
-                    return module;
+
+                    // Set up custom module resolution for shared dependencies
+                    const loadedModule = this.loadWithSharedDependencies(require, filePath);
+
+                    debug.log(`[ToolLoader] Loaded ${filePath} using createRequire with shared deps`);
+                    return loadedModule;
                 } catch (error) {
                     debug.log(`[ToolLoader] createRequire failed for ${filePath}:`, error);
                 }
-                
+
                 // Try Node.js require directly (for CommonJS modules)
                 try {
                     // Use eval to avoid bundler trying to resolve require
                     const requireFunc = eval('require');
-                    delete requireFunc.cache[filePath];
-                    const module = requireFunc(filePath);
-                    debug.log(`[ToolLoader] Loaded ${filePath} using direct require`);
-                    return module;
+                    const loadedModule = this.loadWithSharedDependencies(requireFunc, filePath);
+                    debug.log(`[ToolLoader] Loaded ${filePath} using direct require with shared deps`);
+                    return loadedModule;
                 } catch (error) {
                     debug.log(`[ToolLoader] Direct require failed for ${filePath}:`, error);
                 }
-                
+
                 // Try dynamic import with file URL
                 try {
                     const fileUrl = pathToFileURL(filePath).href;
@@ -304,7 +333,7 @@ export class ToolLoader {
                     debug.log(`[ToolLoader] Dynamic import failed for ${filePath}:`, error);
                 }
             }
-            
+
             // For TypeScript files (.ts, .tsx), use dynamic import
             const fileUrl = pathToFileURL(filePath).href;
             const module = await import(fileUrl);
@@ -322,7 +351,7 @@ export class ToolLoader {
         // Handle default export
         if (moduleExports.default) {
             const defaultExport = moduleExports.default;
-            
+
             // If it's a function, call it
             if (typeof defaultExport === 'function') {
                 try {
@@ -335,12 +364,12 @@ export class ToolLoader {
                     }
                 }
             }
-            
+
             // If it's already a tool
             if (this.isValidTool(defaultExport)) {
                 return defaultExport;
             }
-            
+
             // If it's an array of tools, take the first one
             if (Array.isArray(defaultExport) && defaultExport.length > 0) {
                 const firstTool = defaultExport[0];
@@ -353,7 +382,7 @@ export class ToolLoader {
         for (const exportName of namedExports) {
             if (exportName in moduleExports) {
                 const exported = moduleExports[exportName];
-                
+
                 if (typeof exported === 'function') {
                     try {
                         const result = await exported();
@@ -362,7 +391,7 @@ export class ToolLoader {
                         // Not callable
                     }
                 }
-                
+
                 if (this.isValidTool(exported)) {
                     return exported;
                 }
@@ -381,11 +410,11 @@ export class ToolLoader {
      * Validate if an object is a valid tool
      */
     private isValidTool(obj: any): obj is ToolDefinition {
-        return obj && 
-               typeof obj === 'object' &&
-               typeof obj.id === 'string' &&
-               typeof obj.description === 'string' &&
-               typeof obj.execute === 'function';
+        return obj &&
+            typeof obj === 'object' &&
+            typeof obj.id === 'string' &&
+            typeof obj.description === 'string' &&
+            typeof obj.execute === 'function';
     }
 
     /**
@@ -425,7 +454,7 @@ export class ToolLoader {
      */
     private async unloadTool(toolId: string): Promise<void> {
         debug.log(`[ToolLoader] Unloading tool: ${toolId}`);
-        
+
         const tool = this.registry.get(toolId);
         if (tool && tool.definition.cleanup) {
             try {
@@ -439,10 +468,10 @@ export class ToolLoader {
                 debug.error(`[ToolLoader] Cleanup failed for ${toolId}:`, error);
             }
         }
-        
+
         // Unregister from registry
         await this.registry.unregister(toolId);
-        
+
         // Remove from loaded tools
         this.loadedTools.delete(toolId);
     }
@@ -452,7 +481,7 @@ export class ToolLoader {
      */
     async reloadAllTools(): Promise<void> {
         debug.log('[ToolLoader] Reloading all tools...');
-        
+
         // Unload all currently loaded tools
         const toolIds = Array.from(this.loadedTools.keys());
         for (const toolId of toolIds) {
@@ -462,7 +491,7 @@ export class ToolLoader {
             }
             await this.unloadTool(toolId);
         }
-        
+
         // Clear module cache for dynamic imports
         if (typeof require !== 'undefined' && require.cache) {
             for (const [toolId, info] of this.loadedTools) {
@@ -471,10 +500,10 @@ export class ToolLoader {
                 }
             }
         }
-        
+
         // Reload all tools
         await this.loadTools();
-        
+
         debug.log('[ToolLoader] Tool reload complete');
     }
 
@@ -482,18 +511,18 @@ export class ToolLoader {
      * Set up file watchers for hot reloading
      */
     private async setupWatchers(): Promise<void> {
-        const { watch } = await import('fs');
-        
+        const {watch} = await import('fs');
+
         for (const dir of this.options.directories) {
             const toolsDir = path.join(dir, dir.endsWith('tools') ? '' : 'tools');
-            
+
             if (!await this.exists(toolsDir)) continue;
 
-            const watcher = watch(toolsDir, { recursive: true }, async (eventType, filename) => {
+            const watcher = watch(toolsDir, {recursive: true}, async (eventType, filename) => {
                 if (!filename || !this.isToolFile(filename)) return;
 
                 const filePath = path.join(toolsDir, filename);
-                
+
                 try {
                     const stats = await fs.stat(filePath);
                     if (stats.isFile()) {
@@ -542,13 +571,13 @@ export class ToolLoader {
      */
     async reloadTools(): Promise<void> {
         debug.log('[ToolLoader] Reloading all tools...');
-        
+
         // Store current tools
         const currentTools = new Map(this.loadedTools);
-        
+
         // Clear loaded tools
         this.loadedTools.clear();
-        
+
         // Reload each tool
         for (const [_, info] of currentTools) {
             if (!info.path.startsWith('builtin:')) {
@@ -566,9 +595,50 @@ export class ToolLoader {
             cleanup();
         }
         this.watcherCleanup = [];
-        
+
         // Clear loaded tools
         this.loadedTools.clear();
+    }
+
+    /**
+     * Load a module with shared dependencies from the main clanker package
+     */
+    private loadWithSharedDependencies(requireFunc: any, filePath: string): any {
+        const Module = requireFunc('module');
+        const originalResolveFilename = Module._resolveFilename;
+
+        // Create a custom resolver that shares dependencies from main clanker
+        Module._resolveFilename = function (request: string, parent: any, isMain: boolean) {
+            // Check if this is a dependency that should be shared
+            if (shouldShareDependency(request)) {
+                try {
+                    // Try to resolve from the main clanker module context
+                    // This allows tools to use React, Ink, and other deps from clanker
+                    const mainModule = require.main || module;
+                    return originalResolveFilename.call(this, request, mainModule, false);
+                } catch (e) {
+                    // If that fails, try from the current module context
+                    try {
+                        return originalResolveFilename.call(this, request, module, false);
+                    } catch (e2) {
+                        debug.log(`[ToolLoader] Failed to resolve shared dependency ${request}`);
+                    }
+                }
+            }
+
+            // Fall back to normal resolution
+            return originalResolveFilename.call(this, request, parent, isMain);
+        };
+
+        try {
+            // Clear cache to ensure fresh load
+            delete requireFunc.cache[filePath];
+            const loadedModule = requireFunc(filePath);
+            return loadedModule;
+        } finally {
+            // Always restore original resolution
+            Module._resolveFilename = originalResolveFilename;
+        }
     }
 
     /**
@@ -576,13 +646,13 @@ export class ToolLoader {
      */
     static async createToolTemplate(toolName: string, baseDir: string = process.cwd()): Promise<void> {
         const toolsDir = path.join(baseDir, '.clank', 'tools');
-        
+
         // Ensure directory exists
-        await fs.mkdir(toolsDir, { recursive: true });
-        
+        await fs.mkdir(toolsDir, {recursive: true});
+
         const fileName = `${toolName}.ts`;
         const filePath = path.join(toolsDir, fileName);
-        
+
         // Check if file already exists
         try {
             await fs.access(filePath);
@@ -590,7 +660,7 @@ export class ToolLoader {
         } catch (error: any) {
             if (error.code !== 'ENOENT') throw error;
         }
-        
+
         // Create template content
         const template = `/**
  * ${toolName} tool
