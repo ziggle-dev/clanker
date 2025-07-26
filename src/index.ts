@@ -359,6 +359,11 @@ program
                 return;
             }
 
+            // Ensure core tools are installed on first run
+            const {CoreToolsManager} = await import('./package-manager/core-tools');
+            const coreToolsManager = new CoreToolsManager();
+            await coreToolsManager.ensureCoreToolsInstalled();
+
             // Interactive mode: launch UI
             const {render} = await import("ink");
             const React = await import("react");
