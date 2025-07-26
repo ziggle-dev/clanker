@@ -58,9 +58,12 @@ npm run build
 # Run the built version
 npm start
 
-# Run tests
+# Run checks
 npm run typecheck
 npm run lint
+
+# Build before testing locally
+npm run build
 ```
 
 ### Code Style
@@ -119,17 +122,22 @@ Tools are a great way to contribute! See the [Tool Development Guide](docs/tools
 1. Create your tool in `src/tools/dynamic/`
 2. Follow the tool template:
    ```typescript
-   import { createDynamicTool } from '../../registry';
+   import { createTool, ToolCategory, ToolCapability } from '../../registry';
    
-   export default createDynamicTool({
-     id: 'your_tool',
-     name: 'Your Tool',
-     description: 'What your tool does',
-     execute: async (args) => {
+   const yourTool = createTool()
+     .id('your_tool')
+     .name('Your Tool')
+     .description('What your tool does')
+     .category(ToolCategory.Utility)
+     .capabilities(ToolCapability.FileRead)
+     .stringArg('input', 'Input description', { required: true })
+     .execute(async (args, context) => {
        // Implementation
        return { success: true, output: 'Result' };
-     }
-   });
+     })
+     .build();
+   
+   export default yourTool;
    ```
 3. Add tests for your tool
 4. Document the tool in your PR

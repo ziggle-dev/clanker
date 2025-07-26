@@ -33,7 +33,7 @@ Clanker supports multiple configuration methods, in order of precedence:
 ### 1. Command Line Arguments
 
 ```bash
-clanker --api-key YOUR_API_KEY --model gpt-4
+clanker --api-key YOUR_API_KEY --model grok-3-latest
 ```
 
 ### 2. Environment Variables
@@ -41,7 +41,7 @@ clanker --api-key YOUR_API_KEY --model gpt-4
 ```bash
 export CLANKER_API_KEY="your-api-key"
 export CLANKER_BASE_URL="https://api.openai.com/v1"  # Optional
-export CLANKER_MODEL="gpt-4"  # Optional
+export CLANKER_MODEL="grok-3-latest"  # Optional
 ```
 
 ### 3. User Settings File
@@ -51,15 +51,20 @@ Create `~/.clanker/user-settings.json`:
 ```json
 {
   "apiKey": "your-api-key",
-  "provider": "openai",
-  "model": "gpt-4",
-  "confirmBeforeExecute": true
+  "provider": "grok",
+  "model": "grok-3-latest",
+  "theme": "dark",
+  "autoEditEnabled": false,
+  "confirmationSettings": {
+    "fileOperations": true,
+    "bashCommands": true
+  }
 }
 ```
 
 ### 4. Project-Specific Instructions
 
-Create `CLANKER.md` in your project root to provide context-specific instructions:
+Create `CLAUDE.md` in your project root to provide context-specific instructions:
 
 ```markdown
 # Project Context
@@ -144,9 +149,14 @@ You can:
 
 Clanker works with various AI providers:
 
+**Grok (Default)**:
+```bash
+clanker --model grok-3-latest
+```
+
 **OpenAI**:
 ```bash
-clanker --provider openai --model gpt-4
+clanker --base-url https://api.openai.com/v1 --model gpt-4
 ```
 
 **Anthropic** (via proxy):

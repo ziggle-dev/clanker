@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.33] - 2025-07-26
+
+### Fixed
+- Tool loading regression - tools now properly load before chat initialization
+- Streaming chat responses - removed buffering delay for immediate updates
+- ReferenceError in message input handling
+- Tool output rendering with custom renderResult functions
+
+### Changed
+- Improved streaming performance with direct updates instead of 100ms throttle
+- Cleaned up root directory structure
+
+## [0.1.32] - 2025-07-26
+
+### Fixed
+- Auto-restart after initial settings setup
+- Dynamic version display from package.json for --version command
+
+### Added
+- Core tools refactor
+- Clanker-tools submission format and setup documentation
+
 ## [0.1.1] - 2024-07-25
 
 ### Added

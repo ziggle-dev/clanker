@@ -53,20 +53,29 @@ That's it. Clanker will guide you through setup on first run.
 ## Key Features
 
 ### 🧠 **Intelligent File Editing**
-Our order-invariant diff algorithm achieves **89% success rate** vs 8% for traditional approaches. [Learn more →](docs/architecture.md#order-invariant-diff-algorithm)
+Advanced order-invariant diff algorithm for reliable file editing. Multiple edit strategies ensure changes are applied correctly even in complex scenarios. [Learn more →](docs/architecture.md#order-invariant-diff-algorithm)
 
 ### 🛠️ **Extensible Tool System**
 Every action is a tool. Create your own in minutes:
 ```typescript
-export default createTool({
-  id: 'pr_ready',
-  execute: async () => {
-    await runTests();
-    await checkLinting();
-    await verifyTypes();
-    return { ready: true };
-  }
-});
+const prReadyTool = createTool()
+  .id('pr_ready')
+  .name('PR Ready Check')
+  .description('Check if code is ready for PR')
+  .execute(async (args, context) => {
+    // Run your checks here
+    const testsPass = await runTests();
+    const lintPass = await checkLinting();
+    const typesOk = await verifyTypes();
+    
+    return { 
+      success: testsPass && lintPass && typesOk,
+      output: 'All checks passed!'
+    };
+  })
+  .build();
+
+export default prReadyTool;
 ```
 [Tool docs →](docs/tools.md)
 
