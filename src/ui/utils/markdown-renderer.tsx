@@ -33,18 +33,18 @@ export const MarkdownRenderer = React.memo(function MarkdownRenderer({ content, 
     // Limit lines to prevent performance issues with very large outputs
     const MAX_LINES = 500;
     if (allLines.length > MAX_LINES) {
-      console.warn(`[MarkdownRenderer] Truncating output from ${allLines.length} to ${MAX_LINES} lines`);
+      // console.warn(`[MarkdownRenderer] Truncating output from ${allLines.length} to ${MAX_LINES} lines`);
       return [...allLines.slice(0, MAX_LINES - 1), `... (${allLines.length - MAX_LINES} more lines)`];
     }
     return allLines;
   }, [rendered]);
   
-  // Add debug info for large content
-  React.useEffect(() => {
-    if (content.length > 1000) {
-      console.log(`[MarkdownRenderer] Rendering large content: ${content.length} chars, ${lines.length} lines`);
-    }
-  }, [content.length, lines.length]);
+  // // Add debug info for large content
+  // React.useEffect(() => {
+  //   if (content.length > 1000) {
+  //     console.log(`[MarkdownRenderer] Rendering large content: ${content.length} chars, ${lines.length} lines`);
+  //   }
+  // }, [content.length, lines.length]);
   
   return (
     <Box flexDirection="column" width="100%">
