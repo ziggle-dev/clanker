@@ -7,12 +7,14 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { SettingsManager, Settings, ProviderModels } from '../../utils/settings-manager';
 import { actions } from '../../store';
 import { registerBuiltinCommands } from '../../commands/builtin';
+import { GrokAgent } from '../../clanker/agent';
 
 interface AppContainerProps {
     agent?: GrokAgent;
+    onRequestReload?: () => void;
 }
 
-export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent }) => {
+export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent, onRequestReload }) => {
     const [showLogo, setShowLogo] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
     const [agent, setAgent] = useState<GrokAgent | null>(initialAgent || null);
@@ -42,9 +44,10 @@ export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent 
     };
     
     const handleSettingsComplete = async (settings: Settings) => {
-        setShowSettings(false);
+        // Settings have been saved to disk by SettingsScreen
+        console.log('\n✅ Settings saved successfully!');
         
-        // Create agent with new settings
+        // Create the agent with proper initialization
         try {
             // Get the base URL from provider configuration
             let baseURL: string | undefined;
@@ -55,25 +58,23 @@ export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent 
                 baseURL = providerConfig.baseURL;
             }
             
-            console.log('Creating new agent with settings:', {
-                provider: settings.provider,
-                baseURL,
-                model: settings.model,
-                apiKey: settings.apiKey ? '***' : 'missing'
-            });
+            // Ensure core tools are installed
+            const {CoreToolsManager} = await import('../../package-manager/core-tools');
+            const coreToolsManager = new CoreToolsManager();
+            await coreToolsManager.ensureCoreToolsInstalled();
             
+            // Create new agent with all the proper settings
             const newAgent = new GrokAgent({
                 apiKey: settings.apiKey,
                 baseURL,
-                model: settings.model,
+                model: settings.model || ProviderModels.grok.defaultModel,
                 loadDynamicTools: true
             });
             
-            // Clear any previous messages when creating new agent
-            actions.clearMessages();
-            
+            // Update the app state
             setAgent(newAgent);
             actions.setAgent(newAgent);
+            actions.clearMessages();
             
             // Update store settings
             actions.setModel(settings.model);
@@ -83,10 +84,14 @@ export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent 
             actions.setDangerousBypassPermission(settings.dangerousBypassPermission);
             actions.updateConfirmationSettings(settings.confirmationSettings);
             
-            console.log('Agent created successfully');
+            // Hide settings and show logo for normal flow
+            setShowSettings(false);
+            setShowLogo(true);
+            
+            console.log('Agent initialized successfully');
         } catch (error) {
-            console.error('Failed to create agent:', error);
-            setShowSettings(true);
+            console.error('Failed to initialize agent:', error);
+            // Keep showing settings on error
         }
     };
     
