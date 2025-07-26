@@ -11,6 +11,7 @@ import {ConfirmationService} from "./utils/confirmation-service";
 import {setDebugMode, debug} from "./utils/debug-logger";
 import {PackageManager} from "./package-manager";
 // Display functions no longer needed - using React components instead
+import packageJson from "../package.json" assert { type: "json" };
 
 // Load environment variables
 dotenv.config({quiet: true});
@@ -144,7 +145,7 @@ program
     .description(
         "Test the new dynamic tool registry system for Grok CLI"
     )
-    .version("0.1.0")
+    .version(packageJson.version)
     .option("-d, --directory <dir>", "set working directory", process.cwd())
     .option("-k, --api-key <key>", "API key (or set CLANKER_API_KEY env var)")
     .option(
