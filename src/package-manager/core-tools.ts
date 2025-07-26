@@ -83,7 +83,7 @@ export class CoreToolsManager {
   private async installTool(toolSpec: string): Promise<void> {
     try {
       debug.log(`[CoreTools] Installing ${toolSpec}...`);
-      await this.installer.install(toolSpec, { silent: true });
+      await this.installer.install(toolSpec);
     } catch (error) {
       debug.error(`[CoreTools] Failed to install ${toolSpec}:`, error);
       throw error;

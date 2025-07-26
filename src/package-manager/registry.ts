@@ -122,7 +122,8 @@ export class RegistryClient {
       debug.log(`[Registry] Found tool in registry:`, toolInfo);
       // Convert registry format to metadata format
       const version = toolInfo.version || toolInfo.latest || '1.0.0';
-      return {
+      debug.log(`[Registry] Converting toolInfo to metadata. Version: ${version}`);
+      const metadata = {
         id: toolInfo.id || `${toolInfo.org}/${toolInfo.name}`,
         name: `${toolInfo.org}-clanker-tool-${toolInfo.name}`,
         description: toolInfo.description,
@@ -139,6 +140,8 @@ export class RegistryClient {
         },
         tags: toolInfo.keywords || []
       };
+      debug.log(`[Registry] Created metadata:`, JSON.stringify(metadata, null, 2));
+      return metadata;
     }
     
     // Fallback to old method for backward compatibility

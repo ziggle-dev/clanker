@@ -40,10 +40,12 @@ export class ToolInstaller {
     try {
       // Fetch tool metadata
       const metadata = await this.registry.fetchToolMetadata(tool);
+      debug.log(`[Installer] Fetched metadata:`, JSON.stringify(metadata, null, 2));
       
       // Resolve version
       const version = this.resolver.resolveVersion(metadata, tool.version || 'latest');
       tool.version = version;
+      debug.log(`[Installer] Resolved version: ${version}`);
       
       // Check if already installed
       const manifest = await this.loadManifest();
@@ -57,6 +59,8 @@ export class ToolInstaller {
       }
       
       // Check Clanker compatibility
+      debug.log(`[Installer] Checking version info for version ${version}`);
+      debug.log(`[Installer] Available versions:`, Object.keys(metadata.versions));
       const versionInfo = metadata.versions[version];
       const clankerVersion = await this.getClankerVersion();
       if (!this.resolver.checkClankerCompatibility(versionInfo, clankerVersion)) {
