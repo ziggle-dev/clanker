@@ -27,12 +27,21 @@ export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent,
         // Load settings
         actions.loadSettings();
         
+        // Load tools if agent is provided
+        if (agent) {
+            agent.waitForToolsToLoad().then(() => {
+                console.log('Tools loaded successfully');
+            }).catch(error => {
+                console.error('Failed to load tools:', error);
+            });
+        }
+        
         // Check if settings need configuration
         if (!agent && settingsManager.needsConfiguration()) {
             setShowSettings(true);
             setShowLogo(false);
         }
-    }, []);
+    }, [agent]);
     
     const handleLogoComplete = () => {
         setShowLogo(false);
@@ -70,6 +79,9 @@ export const AppContainer: React.FC<AppContainerProps> = ({ agent: initialAgent,
                 model: settings.model || ProviderModels.grok.defaultModel,
                 loadDynamicTools: true
             });
+            
+            // Wait for tools to load
+            await newAgent.waitForToolsToLoad();
             
             // Update the app state
             setAgent(newAgent);

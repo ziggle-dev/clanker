@@ -28,9 +28,8 @@ export const useMessageInput = ({
     // Get store state for auto-edit
     const snap = useSnapshot(store);
     
-    // Refs for throttled updates
+    // Ref for content buffer
     const contentBufferRef = useRef<{ [messageId: string]: string }>({});
-    const updateTimerRef = useRef<{ [messageId: string]: ReturnType<typeof setTimeout> | null }>({});
 
     const sendMessage = useCallback(
         async (content: string) => {
@@ -140,29 +139,11 @@ export const useMessageInput = ({
                                         });
                                         debug.log(`[useMessageInput] First chunk displayed immediately for message ${messageId}`);
                                     } else {
-                                        // Subsequent chunks - buffer and throttle
+                                        // Subsequent chunks - update immediately
                                         contentBufferRef.current[messageId] += chunk.content;
-                                        
-                                        // Clear existing timer
-                                        if (updateTimerRef.current[messageId]) {
-                                            clearTimeout(updateTimerRef.current[messageId]!);
-                                        }
-                                        
-                                        // Schedule update
-                                        updateTimerRef.current[messageId] = setTimeout(() => {
-                                            const bufferedContent = contentBufferRef.current[messageId];
-                                            if (bufferedContent) {
-                                                debug.log(`[useMessageInput] Updating message ${messageId} with ${bufferedContent.length} chars`);
-                                                messageRegistry.updateMessage(messageId, {
-                                                    content: bufferedContent
-                                                });
-                                            } else {
-                                                debug.warn(`[useMessageInput] No buffered content for message ${messageId}`);
-                                            }
-                                            updateTimerRef.current[messageId] = null;
-                                        }, 100); // Reduced from 250ms to 100ms for faster updates
-                                        
-                                        debug.log(`[useMessageInput] Buffered content for message ${messageId}: ${chunk.content.substring(0, 50)}...`);
+                                        messageRegistry.updateMessage(messageId, {
+                                            content: contentBufferRef.current[messageId]
+                                        });
                                     }
                                 }
                                 break;
@@ -249,11 +230,7 @@ export const useMessageInput = ({
                                 if (currentAssistantMessage) {
                                     const messageId = currentAssistantMessage.id;
                                     
-                                    // Flush any remaining buffered content
-                                    if (updateTimerRef.current[messageId]) {
-                                        clearTimeout(updateTimerRef.current[messageId]!);
-                                        updateTimerRef.current[messageId] = null;
-                                    }
+                                    // No need to flush since we're updating immediately
                                     
                                     const finalContent = contentBufferRef.current[messageId];
                                     const currentMsg = messageRegistry.getMessages().find(m => m.id === messageId);
@@ -301,24 +278,8 @@ export const useMessageInput = ({
                 actions.setStreaming(false);
                 processingStartTime.current = 0;
                 
-                // Clean up any remaining timers and buffers
-                Object.keys(updateTimerRef.current).forEach(messageId => {
-                    if (updateTimerRef.current[messageId]) {
-                        clearTimeout(updateTimerRef.current[messageId]!);
-                        
-                        // Flush any remaining content
-                        const bufferedContent = contentBufferRef.current[messageId];
-                        if (bufferedContent) {
-                            messageRegistry.updateMessage(messageId, {
-                                content: bufferedContent
-                            });
-                        }
-                    }
-                });
-                
-                // Clear all refs
+                // Clear buffer ref
                 contentBufferRef.current = {};
-                updateTimerRef.current = {};
                 
                 // Check for and clean up any stuck executions
                 // This helps ensure the loading indicator disappears

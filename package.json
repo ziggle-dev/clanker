@@ -1,6 +1,6 @@
 {
   "name": "@ziggler/clanker",
-  "version": "0.1.32",
+  "version": "0.1.33",
   "description": "AI agents that actually do things - real actions, real changes, real time",
   "type": "module",
   "main": "dist/index.js",

@@ -436,6 +436,9 @@ program
                         dynamicToolsPath: options.toolsPath,
                         watchTools: options.watchTools
                     });
+                    
+                    // Wait for tools to load
+                    await agent.waitForToolsToLoad();
                 } catch (error) {
                     console.error('Failed to create agent with saved settings:', error);
                 }
