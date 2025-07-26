@@ -28,6 +28,14 @@ const DEFAULT_REPOSITORY: Repository = {
     addedAt: new Date().toISOString()
 };
 
+const CORE_TOOLS_REPOSITORY: Repository = {
+    url: 'https://github.com/ziggle-dev/clanker-core-tools',
+    name: 'clanker-core-tools',
+    description: 'Core tools for Clanker CLI',
+    enabled: true,
+    addedAt: new Date().toISOString()
+};
+
 export class RepositoryManager {
     private settingsPath: string;
     private settings: RepositorySettings;
@@ -45,6 +53,15 @@ export class RepositoryManager {
             if (!allSettings.repositories) {
                 allSettings.repositories = [DEFAULT_REPOSITORY];
                 allSettings.defaultRepository = DEFAULT_REPOSITORY.url;
+                await this.saveSettings(allSettings);
+            }
+            
+            // Ensure core tools repository is present (for v0.1.31+)
+            const hasCoreTools = allSettings.repositories.some(r => 
+                r.url === 'https://github.com/ziggle-dev/clanker-core-tools'
+            );
+            if (!hasCoreTools) {
+                allSettings.repositories.push(CORE_TOOLS_REPOSITORY);
                 await this.saveSettings(allSettings);
             }
             
