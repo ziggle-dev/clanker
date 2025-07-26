@@ -1,0 +1,184 @@
+name: Process Tool Submission
+
+on:
+  pull_request:
+    paths:
+      - 'manifests/**/*.yaml'
+      - 'manifests/**/*.yml'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: |
+          npm ci
+          
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v40
+        with:
+          files: |
+            manifests/**/*.yaml
+            manifests/**/*.yml
+            
+      - name: Process each manifest
+        run: |
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Processing $file"
+            
+            # Extract organization, tool name, and version from path
+            # manifests/o/org/tool/version/manifest.yaml
+            IFS='/' read -ra PARTS <<< "$file"
+            ORG="${PARTS[2]}"
+            TOOL="${PARTS[3]}"
+            VERSION="${PARTS[4]}"
+            
+            echo "Building $ORG/$TOOL@$VERSION"
+            
+            # Run the build pipeline
+            npm run process-tool -- \
+              --manifest="$file" \
+              --org="$ORG" \
+              --tool="$TOOL" \
+              --version="$VERSION"
+          done
+          
+      - name: Create built branches
+        if: success()
+        run: |
+          # For each successfully built tool, create a branch
+          for built_tool in built/*/*/*; do
+            if [ -d "$built_tool" ]; then
+              # Extract path components
+              IFS='/' read -ra PARTS <<< "$built_tool"
+              ORG="${PARTS[1]}"
+              TOOL="${PARTS[2]}"
+              VERSION="${PARTS[3]}"
+              
+              BRANCH_NAME="built/$ORG/$TOOL/$VERSION"
+              
+              # Create and push branch
+              git checkout -b "$BRANCH_NAME"
+              git add "$built_tool"
+              git commit -m "feat: build $ORG/$TOOL@$VERSION
+
+              Built from PR #${{ github.event.pull_request.number }}
+              Source: ${{ github.event.pull_request.head.sha }}"
+              
+              git push origin "$BRANCH_NAME"
+              git checkout main
+            fi
+          done
+          
+      - name: Comment success on PR
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const builtTools = [];
+            
+            // Find all built tools
+            const builtDir = 'built';
+            if (fs.existsSync(builtDir)) {
+              const orgs = fs.readdirSync(builtDir);
+              for (const org of orgs) {
+                const tools = fs.readdirSync(`${builtDir}/${org}`);
+                for (const tool of tools) {
+                  const versions = fs.readdirSync(`${builtDir}/${org}/${tool}`);
+                  for (const version of versions) {
+                    builtTools.push(`${org}/${tool}@${version}`);
+                  }
+                }
+              }
+            }
+            
+            const comment = `## ✅ Build Successful!
+            
+            The following tools were built successfully:
+            ${builtTools.map(t => `- \`${t}\``).join('\n')}
+            
+            ### Next Steps
+            1. A maintainer will review your submission
+            2. Once approved, the tool will be merged and available globally
+            3. Users can install with: \`clanker --install ${builtTools[0]}\`
+            
+            Thank you for contributing to Clanker Tools! 🎉`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+            
+      - name: Comment failure on PR
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `## ❌ Build Failed
+            
+            There was an error processing your tool submission. Please check:
+            
+            1. **Manifest format** - Ensure your YAML is valid
+            2. **Source repository** - Make sure it's accessible
+            3. **Build commands** - Verify they work in a clean environment
+            4. **Entry point** - Check that the specified entry file exists
+            
+            See the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  security-scan:
+    runs-on: ubuntu-latest
+    needs: validate-and-build
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        
+      - name: Run security checks
+        run: |
+          # Scan built tools for:
+          # - eval() usage
+          # - Suspicious network calls
+          # - File system access patterns
+          # - Crypto mining patterns
+          npm run security-scan built/
+          
+      - name: Comment security results
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const scanPassed = ${{ job.status }} === 'success';
+            const comment = scanPassed 
+              ? '### 🔒 Security Scan: **PASSED**\n\nNo security issues detected.'
+              : '### 🚨 Security Scan: **FAILED**\n\nSecurity issues detected. Please review and fix.';
+              
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

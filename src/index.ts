@@ -313,6 +313,13 @@ program
                 process.exit(1);
             }
 
+            // Ensure core tools are installed on first run (for any mode that uses tools)
+            if (options.listTools || options.prompt || !options.publish) {
+                const {CoreToolsManager} = await import('./package-manager/core-tools');
+                const coreToolsManager = new CoreToolsManager();
+                await coreToolsManager.ensureCoreToolsInstalled();
+            }
+
             // List tools mode
             if (options.listTools) {
                 const agent = new GrokAgent({
